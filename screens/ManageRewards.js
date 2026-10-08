@@ -12,9 +12,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
+import { useUser } from "../config/UserContext";
+import { canWriteContent, canViewAdminPanel } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 export default function ManageRewards({ navigation }) {
+  const { userData } = useUser();
+  const canWrite = canWriteContent(userData); // Main Admin only (collectors = view only)
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -93,9 +97,11 @@ export default function ManageRewards({ navigation }) {
           <Text style={styles.itemStock}>Stock: {item.stock || 0}</Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteItem(item.id)}>
-        <MaterialCommunityIcons name="delete" size={22} color="#E57373" />
-      </TouchableOpacity>
+      {canWrite && (
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteItem(item.id)}>
+          <MaterialCommunityIcons name="delete" size={22} color="#E57373" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -107,24 +113,28 @@ export default function ManageRewards({ navigation }) {
           <MaterialCommunityIcons name="chevron-double-left" size={35} color="#4A90E2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Rewards</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
-          <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
-        </TouchableOpacity>
+        {canWrite && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+            <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.divider} />
 
-      {/* QR Generator Button */}
-      <TouchableOpacity 
-        style={styles.qrButton}
-        onPress={() => navigation.navigate("QRGenerator")}
-      >
-        <MaterialCommunityIcons name="qrcode" size={30} color="#FFF" />
-        <View style={styles.qrButtonText}>
-          <Text style={styles.qrButtonTitle}>Generate QR Code</Text>
-          <Text style={styles.qrButtonSub}>Create reward QR for users to scan</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={24} color="#FFF" />
-      </TouchableOpacity>
+      {/* QR Generator Button — staff only (collectors generate fixed 1/day QRs) */}
+      {canViewAdminPanel(userData) && (
+        <TouchableOpacity 
+          style={styles.qrButton}
+          onPress={() => navigation.navigate("QRGenerator")}
+        >
+          <MaterialCommunityIcons name="qrcode" size={30} color="#FFF" />
+          <View style={styles.qrButtonText}>
+            <Text style={styles.qrButtonTitle}>Generate QR Code</Text>
+            <Text style={styles.qrButtonSub}>Create reward QR for users to scan</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={24} color="#FFF" />
+        </TouchableOpacity>
+      )}
 
       {/* Items List */}
       <Text style={styles.sectionTitle}>Redeemable Items</Text>

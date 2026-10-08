@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { auth, db } from "../config/firebase";
+import { canViewAdminPanel } from "../config/roles";
 
 export default function Login() {
   const navigation = useNavigation();
@@ -73,7 +74,7 @@ export default function Login() {
       const userDoc = await db.collection("users").doc(user.uid).get();
       const userData = userDoc.data();
 
-      if (userData?.role === "admin") {
+      if (canViewAdminPanel(userData)) {
         navigation.navigate("AdminHome");
       } else {
         navigation.navigate("Home");

@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Navbar from "../components/Navbar";
 import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import { canEditSchedule, canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 const colors = [
@@ -29,7 +30,8 @@ const colors = [
 
 export default function CleaningSchedule({ navigation }) {
   const { userData } = useUser();
-  const isAdmin = userData?.role === "admin";
+  // Edit + delete on cleaning schedules is Main Admin only
+  const canManage = canEditSchedule(userData) || canDelete(userData);
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -184,7 +186,7 @@ export default function CleaningSchedule({ navigation }) {
                     <MaterialCommunityIcons name="clock-outline" size={14} color="#FFF" />
                     <Text style={styles.timeText}>{item.time}</Text>
                   </View>
-                  {isAdmin && (
+                  {canManage && (
                     <View style={styles.adminActions}>
                       <TouchableOpacity onPress={() => openEditModal(item)}>
                         <MaterialCommunityIcons name="pencil" size={18} color="#FFF" />

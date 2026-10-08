@@ -1,10 +1,12 @@
 import { StatusBar } from "expo-status-bar";
-import { Platform } from "react-native";
+import { Platform, BackHandler, ToastAndroid } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
 import * as NavigationBar from "expo-navigation-bar";
+import { useEffect, useRef } from "react";
 import { UserProvider } from "./config/UserContext";
+import { auth } from "./config/firebase";
 
 import StartScreen from "./screens/StartScreen";
 import Getstarted from "./screens/Getstarted";
@@ -34,6 +36,43 @@ import PointHistory from "./screens/PointHistory";
 
 const Stack = createNativeStackNavigator();
 
+function BackButtonHandler() {
+  const lastPressRef = useRef(0);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        const now = Date.now();
+
+        // Second press within 2 seconds -> logout and exit
+        if (now - lastPressRef.current < 2000) {
+          lastPressRef.current = 0;
+          Promise.race([
+            auth.signOut(),
+            new Promise((resolve) => setTimeout(resolve, 1000)),
+          ]).finally(() => BackHandler.exitApp());
+          return true;
+        }
+
+        // First press -> ask to press again
+        lastPressRef.current = now;
+        ToastAndroid.show(
+          "Press back again to log out and exit",
+          ToastAndroid.LONG
+        );
+        return true;
+      }
+    );
+
+    return () => subscription.remove();
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     RubikBurned: require("./assets/fonts/RubikBurned-Regular.ttf"),
@@ -49,6 +88,7 @@ export default function App() {
 
   return (
     <UserProvider>
+      <BackButtonHandler />
       <NavigationContainer>
         <StatusBar hidden />
         <Stack.Navigator

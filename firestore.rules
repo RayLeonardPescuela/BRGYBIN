@@ -1,0 +1,172 @@
+// ============================================================
+// FIRESTORE SECURITY RULES — BRNGYBIN
+//
+// HOW TO APPLY (one time):
+//   1. Go to https://console.firebase.google.com
+//   2. Select project "brngybindb" -> Firestore Database -> Rules
+//   3. Paste everything below the line into the editor
+//   4. Click "Publish"
+//
+// WHAT IT ENFORCES (server-side, can't be bypassed from the app):
+//   - Only role "admin" (Main Admin) can DELETE anything
+//   - Only Main Admin can change a user's role
+//   - Only Main Admin can edit schedules / write rewards, announcements, notifications
+//   - admin + collector can add schedules, resolve complaints, complete requests
+//   - Collectors can never delete
+//   - Collector QR codes: one per day, own doc id {uid}_{day}, points must be
+//     one of the fixed presets in config/collectorQr (that doc: admin-write only)
+//   - Scanning may only append the scanner's own uid to scannedBy, never twice
+//
+// WARNING: test the app after publishing. If a flow breaks, roll back
+// from the Rules tab history (Firebase keeps previous versions).
+// ============================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Main Admin
+    function isAdmin() {
+      return isSignedIn() && myRole() == "admin";
+    }
+
+    // Main Admin OR Collector
+    function isStaff() {
+      return isSignedIn() && (myRole() == "admin" || myRole() == "collector");
+    }
+
+    // Fixed point presets the Main Admin allows collectors to mint
+    function collectorQrPoints() {
+      return get(/databases/$(database)/documents/config/collectorQr).data.points;
+    }
+
+    // ---------- GLOBAL: nobody deletes unless they are Main Admin ----------
+    match /{document=**} {
+      allow delete: if isAdmin();
+    }
+
+    // ---------- users ----------
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      // Sign-up: you may only create your own doc, always as a plain user
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == "user";
+
+      // Main Admin can change anything (incl. role);
+      // everyone else only their own doc and may NOT change their own role.
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && request.auth.uid == userId
+                        && request.resource.data.role == resource.data.role);
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------- config (sitios list) ----------
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- schedules ----------
+    match /schedules/{id} {
+      allow read: if isSignedIn();
+      allow create: if isStaff();   // admin + collector may ADD
+      allow update: if isAdmin();   // editing is Main Admin only
+      allow delete: if isAdmin();
+    }
+
+    // ---------- pickup requests ----------
+    match /pickupRequests/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();          // residents file requests
+      allow update: if isStaff();             // admin + collector mark completed
+      allow delete: if isAdmin();
+    }
+
+    // ---------- complaints ----------
+    match /complaints/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();          // residents file (incl. anonymous)
+      allow update: if isStaff();             // admin + collector resolve
+      allow delete: if isAdmin();
+    }
+
+    // ---------- announcements ----------
+    match /announcements/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- notifications ----------
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();             // only Main Admin broadcasts
+      allow update: if isSignedIn();          // anyone may mark their copy as read
+      allow delete: if isAdmin();
+    }
+
+    // ---------- reward items ----------
+    match /rewardItems/{id} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isSignedIn();          // stock is decremented on redemption
+      allow delete: if isAdmin();
+    }
+
+    // ---------- redemptions (points spent) ----------
+    match /redemptions/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- point history (points earned) ----------
+    match /pointHistory/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- rewards (QR codes) ----------
+    match /rewards/{id} {
+      allow read: if isSignedIn();
+
+      // Main Admin: any QR, any points, unlimited.
+      // Collector: exactly one doc per day with id {uid}_{day}, points must be
+      // a preset from config/collectorQr (a second create the same day fails
+      // automatically because the document already exists).
+      allow create: if isAdmin()
+                    || (myRole() == "collector"
+                        && request.auth.uid == request.resource.data.createdBy
+                        && request.resource.data.createdByRole == "collector"
+                        && request.resource.data.points is int
+                        && request.resource.data.points in collectorQrPoints()
+                        && id == request.auth.uid + "_" + request.resource.data.day);
+
+      // Scanner may only append its own uid — never a second time,
+      // and never remove other residents' scans.
+      allow update: if isSignedIn()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scannedBy"])
+                    && (!("scannedBy" in resource.data)
+                        || (!resource.data.scannedBy.hasAny([request.auth.uid])
+                            && request.resource.data.scannedBy.hasAll(resource.data.scannedBy)));
+
+      allow delete: if isAdmin();
+    }
+  }
+}

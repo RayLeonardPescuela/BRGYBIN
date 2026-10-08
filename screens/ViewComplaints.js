@@ -10,9 +10,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
+import { useUser } from "../config/UserContext";
+import { canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 export default function ViewComplaints({ navigation }) {
+  const { userData } = useUser();
   const [activeTab, setActiveTab] = useState("complaints");
   const [complaints, setComplaints] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -100,7 +103,11 @@ export default function ViewComplaints({ navigation }) {
       <View style={styles.cardHeader}>
         <MaterialCommunityIcons name="message-alert" size={24} color="#E57373" />
         <View style={styles.cardMeta}>
-          <Text style={styles.cardUser}>{item.userName || "Anonymous"}</Text>
+          <View style={styles.userRow}>
+            <Text style={styles.cardUser}>{item.userName || "Anonymous"}</Text>
+            <MaterialCommunityIcons name="map-marker" size={14} color={COLORS.primary} />
+            <Text style={styles.cardSitio}>{item.sitio || "--"}</Text>
+          </View>
           <Text style={styles.cardDate}>
             {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Unknown date"}
           </Text>
@@ -126,12 +133,14 @@ export default function ViewComplaints({ navigation }) {
             <Text style={styles.actionBtnText}>Resolve</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => deleteComplaint(item.id)}
-        >
-          <MaterialCommunityIcons name="delete" size={18} color="#FFF" />
-        </TouchableOpacity>
+        {canDelete(userData) && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => deleteComplaint(item.id)}
+          >
+            <MaterialCommunityIcons name="delete" size={18} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -158,7 +167,7 @@ export default function ViewComplaints({ navigation }) {
         </View>
         <View style={styles.detailRow}>
           <MaterialCommunityIcons name="map-marker" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.userSitio}</Text>
+          <Text style={styles.detailText}>{item.userSitio || "--"}</Text>
         </View>
       </View>
 
@@ -172,12 +181,14 @@ export default function ViewComplaints({ navigation }) {
             <Text style={styles.actionBtnText}>Complete</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => deleteRequest(item.id)}
-        >
-          <MaterialCommunityIcons name="delete" size={18} color="#FFF" />
-        </TouchableOpacity>
+        {canDelete(userData) && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => deleteRequest(item.id)}
+          >
+            <MaterialCommunityIcons name="delete" size={18} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -277,6 +288,8 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   cardMeta: { flex: 1, marginLeft: 10 },
   cardUser: { fontSize: 15, fontWeight: "bold", fontFamily: "sans-serif" },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 3, flexWrap: "wrap" },
+  cardSitio: { fontSize: 13, color: COLORS.primary, fontFamily: "sans-serif", fontWeight: "600" },
   cardDate: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "sans-serif" },
   statusBadge: shared.statusBadge,
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 6 },

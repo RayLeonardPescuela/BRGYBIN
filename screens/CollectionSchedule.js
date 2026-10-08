@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import { canEditSchedule, canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,7 +35,8 @@ const formatDateKey = (year, month, day) =>
 
 export default function CollectionSchedule({ navigation }) {
   const { user, userData } = useUser();
-  const isAdmin = userData?.role === "admin";
+  // Edit + delete on schedules is Main Admin only (collectors can't change these)
+  const canManage = canEditSchedule(userData) || canDelete(userData);
 
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
@@ -346,7 +348,7 @@ export default function CollectionSchedule({ navigation }) {
                   <View style={[styles.statusBadge, { backgroundColor: item.status === "completed" ? "#4CAF50" : "#4A90E2" }]}>
                     <Text style={styles.statusText}>{item.status}</Text>
                   </View>
-                  {isAdmin && (
+                  {canManage && (
                     <View style={styles.adminActions}>
                       <TouchableOpacity onPress={() => openEditSchedule(item)}>
                         <MaterialCommunityIcons name="pencil" size={20} color="#4A90E2" />

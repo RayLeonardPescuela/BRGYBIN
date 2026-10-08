@@ -70,6 +70,8 @@ export default function ComplaintFeedback({ navigation }) {
         anonymous: isAnonymous,
         userId: isAnonymous ? null : user?.uid,
         userName: isAnonymous ? "Anonymous" : userData?.name,
+        // Sitio is kept even for anonymous submissions (only name/id are hidden)
+        sitio: userData?.sitio || "--",
         status: "pending",
         createdAt: new Date().toISOString(),
       });
@@ -308,6 +310,19 @@ export default function ComplaintFeedback({ navigation }) {
                     ]}
                   />
                 </View>
+                {/* Reporter + sitio (sitio beside the name) */}
+                <View style={styles.reporterRow}>
+                  <MaterialCommunityIcons
+                    name="account-circle-outline"
+                    size={18}
+                    color="#6B8E4E"
+                  />
+                  <Text style={styles.reporterName}>
+                    {item.userName || userData?.name || "You"}
+                  </Text>
+                  <MaterialCommunityIcons name="map-marker" size={15} color="#6B8E4E" />
+                  <Text style={styles.reporterSitio}>{item.sitio || "--"}</Text>
+                </View>
                 <Text style={styles.complaintTitle}>{item.title}</Text>
                 <Text style={styles.complaintMessage}>{item.message}</Text>
                 <Text style={styles.complaintDate}>
@@ -364,6 +379,9 @@ const styles = StyleSheet.create({
   typeBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   typeBadgeText: { fontSize: 14, fontFamily: "sans-serif", textTransform: "capitalize" },
   statusDot: { width: 12, height: 12, borderRadius: 6 },
+  reporterRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  reporterName: { fontSize: 14, fontFamily: "sans-serif", fontWeight: "bold", color: COLORS.textPrimary, marginRight: 4 },
+  reporterSitio: { fontSize: 13, fontFamily: "sans-serif", color: COLORS.textSecondary },
   complaintTitle: { fontSize: 20, fontFamily: "sans-serif", fontWeight: "bold", marginBottom: 6 },
   complaintMessage: { fontSize: 16, fontFamily: "sans-serif", color: "#555", lineHeight: 22, marginBottom: 10 },
   complaintDate: { fontSize: 14, fontFamily: "sans-serif", color: COLORS.textMuted },

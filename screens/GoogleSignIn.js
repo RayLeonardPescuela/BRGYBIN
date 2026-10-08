@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import firebase from "firebase/compat/app";
 import { auth, db } from "../config/firebase";
+import { canViewAdminPanel } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 GoogleSignin.configure({
@@ -48,7 +49,7 @@ export default function GoogleSignIn({ navigation }) {
         navigation.navigate("Home");
       } else {
         const userData = userDoc.data();
-        if (userData.role === "admin") {
+        if (canViewAdminPanel(userData)) {
           navigation.navigate("AdminHome");
         } else {
           navigation.navigate("Home");

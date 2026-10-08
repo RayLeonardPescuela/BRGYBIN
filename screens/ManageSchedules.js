@@ -16,6 +16,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import {
+  canViewAdminPanel,
+  canAddSchedule,
+  canEditSchedule,
+  canDelete,
+} from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,7 +40,10 @@ const resetSchedule = { type: "collection", date: "", time: "", area: "", sitio:
 
 export default function ManageSchedules({ navigation }) {
   const { userData } = useUser();
-  const isAdmin = userData?.role === "admin";
+  const canOpen = canViewAdminPanel(userData); // admin + collector
+  const canAdd = canAddSchedule(userData); // admin + collector
+  const canEdit = canEditSchedule(userData); // admin only
+  const canDel = canDelete(userData); // admin only
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
@@ -240,7 +249,7 @@ export default function ManageSchedules({ navigation }) {
           <MaterialCommunityIcons name="chevron-double-left" size={35} color="#4A90E2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Schedules</Text>
-        {isAdmin && (
+        {canAdd && (
           <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
             <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
           </TouchableOpacity>
@@ -248,7 +257,7 @@ export default function ManageSchedules({ navigation }) {
       </View>
       <View style={styles.divider} />
 
-      {!isAdmin ? (
+      {!canOpen ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="lock" size={60} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>Admin access required</Text>
@@ -324,17 +333,25 @@ export default function ManageSchedules({ navigation }) {
                   <View style={[styles.statusBadge, { backgroundColor: item.status === "completed" ? "#4CAF50" : "#FFB74D" }]}>
                     <Text style={styles.statusText}>{item.status}</Text>
                   </View>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity onPress={() => openEditModal(item)}>
-                      <MaterialCommunityIcons name="pencil" size={20} color="#4A90E2" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => openNoteModal(item)}>
-                      <MaterialCommunityIcons name="note-edit" size={20} color={COLORS.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteSchedule(item.id)}>
-                      <MaterialCommunityIcons name="delete" size={20} color="#E57373" />
-                    </TouchableOpacity>
-                  </View>
+                  {(canEdit || canDel) && (
+                    <View style={styles.actionRow}>
+                      {canEdit && (
+                        <TouchableOpacity onPress={() => openEditModal(item)}>
+                          <MaterialCommunityIcons name="pencil" size={20} color="#4A90E2" />
+                        </TouchableOpacity>
+                      )}
+                      {canEdit && (
+                        <TouchableOpacity onPress={() => openNoteModal(item)}>
+                          <MaterialCommunityIcons name="note-edit" size={20} color={COLORS.primary} />
+                        </TouchableOpacity>
+                      )}
+                      {canDel && (
+                        <TouchableOpacity onPress={() => deleteSchedule(item.id)}>
+                          <MaterialCommunityIcons name="delete" size={20} color="#E57373" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
             ))

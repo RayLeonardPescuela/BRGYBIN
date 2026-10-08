@@ -14,10 +14,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import { canWriteContent } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 export default function ManageAnnouncements({ navigation }) {
   const { userData } = useUser();
+  const canWrite = canWriteContent(userData); // Main Admin only (collectors = view only)
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -113,23 +115,25 @@ export default function ManageAnnouncements({ navigation }) {
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Announcements</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            setShowForm(!showForm);
-            setEditingId(null);
-            setMessage("");
-          }}
-        >
-          <MaterialCommunityIcons
-            name={showForm ? "close" : "plus"}
-            size={28}
-            color="#FFF"
-          />
-        </TouchableOpacity>
+        {canWrite && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              setShowForm(!showForm);
+              setEditingId(null);
+              setMessage("");
+            }}
+          >
+            <MaterialCommunityIcons
+              name={showForm ? "close" : "plus"}
+              size={28}
+              color="#FFF"
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {showForm && (
+      {showForm && canWrite && (
         <View style={styles.formContainer}>
           <Text style={styles.label}>
             {editingId ? "Edit Announcement" : "New Announcement"}
@@ -179,14 +183,16 @@ export default function ManageAnnouncements({ navigation }) {
                 </Text>
               </View>
               <Text style={styles.cardMessage}>{item.message}</Text>
-              <View style={styles.cardActions}>
-                <TouchableOpacity onPress={() => editAnnouncement(item)}>
-                  <MaterialCommunityIcons name="pencil" size={20} color="#4A90E2" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => deleteAnnouncement(item.id)}>
-                  <MaterialCommunityIcons name="delete" size={20} color="#E57373" />
-                </TouchableOpacity>
-              </View>
+              {canWrite && (
+                <View style={styles.cardActions}>
+                  <TouchableOpacity onPress={() => editAnnouncement(item)}>
+                    <MaterialCommunityIcons name="pencil" size={20} color="#4A90E2" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteAnnouncement(item.id)}>
+                    <MaterialCommunityIcons name="delete" size={20} color="#E57373" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
         />

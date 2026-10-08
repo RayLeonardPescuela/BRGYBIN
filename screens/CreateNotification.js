@@ -13,10 +13,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import { canWriteContent } from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 export default function CreateNotification({ navigation }) {
   const { userData } = useUser();
+  const canWrite = canWriteContent(userData); // Main Admin only (collectors = view only)
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState("collection");
@@ -47,6 +49,10 @@ export default function CreateNotification({ navigation }) {
   }, []);
 
   const sendNotification = async () => {
+    if (!canWrite) {
+      Alert.alert("Not allowed", "Only the Main Admin can send notifications");
+      return;
+    }
     if (!title.trim() || !message.trim()) {
       Alert.alert("Error", "Please fill in all fields");
       return;
@@ -167,20 +173,40 @@ export default function CreateNotification({ navigation }) {
         </View>
 
         {/* Send Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, submitting && { opacity: 0.6 }]}
-          onPress={sendNotification}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="send" size={22} color="#FFF" />
-              <Text style={styles.submitText}>Send Notification</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {canWrite ? (
+          <TouchableOpacity
+            style={[styles.submitButton, submitting && { opacity: 0.6 }]}
+            onPress={sendNotification}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="send" size={22} color="#FFF" />
+                <Text style={styles.submitText}>Send Notification</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              backgroundColor: "#EEEEEE",
+              padding: 15,
+              borderRadius: 30,
+              marginTop: 10,
+            }}
+          >
+            <MaterialCommunityIcons name="lock" size={18} color="#666" />
+            <Text style={{ color: "#666", fontWeight: "600", fontFamily: "sans-serif" }}>
+              Only the Main Admin can send notifications
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

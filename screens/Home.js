@@ -14,12 +14,69 @@ import Navbar from "../components/Navbar";
 import { useUser } from "../config/UserContext";
 import { db } from "../config/firebase";
 import shared, { COLORS } from "../styles";
+import { canViewAdminPanel, roleLabel } from "../config/roles";
 
 const defaultAnnouncements = [
   "Segregation is mandatory in our barangay!",
   "Earn points by reporting missed pickups.",
   "Community clean-up this Sunday 7AM",
 ];
+
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+const startOfToday = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+// Schedule dates come from a free-text field, so they may be
+// "2026-06-26", "June 26", "Jun 26, 2026" or even a Firestore Date.
+const parseScheduleDate = (value) => {
+  if (!value) return null;
+
+  if (typeof value.toDate === "function") return value.toDate();
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // YYYY-MM-DD (with or without a time part)
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+
+  // "June 26", "June 26, 2026", "Jun 26 2026"
+  const named = raw.match(/^([A-Za-z]+)\.?\s+(\d{1,2})(?:\s*,?\s*(\d{4}))?$/);
+  if (named) {
+    const name = named[1].toLowerCase();
+    let month = MONTH_NAMES.indexOf(name);
+    if (month === -1) month = MONTH_NAMES.findIndex((m) => m.startsWith(name));
+    if (month !== -1) {
+      const day = +named[2];
+      let year = named[3] ? +named[3] : new Date().getFullYear();
+      // No year given: if that date already passed, roll to next year's occurrence
+      if (!named[3] && new Date(year, month, day) < startOfToday()) year += 1;
+      return new Date(year, month, day);
+    }
+  }
+
+  // Fallback for other formats (e.g. 06/26/2026)
+  const parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// Always display as e.g. "Jun 26" (adds the year only when it's not this one)
+const formatPickupLabel = (date) => {
+  const label = `${MONTH_ABBR[date.getMonth()]} ${date.getDate()}`;
+  const year = date.getFullYear();
+  return year === new Date().getFullYear() ? label : `${label}, ${year}`;
+};
 
 export default function Home({ navigation }) {
   const [annIndex, setAnnIndex] = useState(0);
@@ -44,8 +101,9 @@ export default function Home({ navigation }) {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    // Wait until UserContext has loaded so userData.sitio is available
+    if (!loading) fetchDashboardData();
+  }, [loading, userData?.sitio]);
 
   const fetchDashboardData = async () => {
     try {
@@ -61,18 +119,32 @@ export default function Home({ navigation }) {
         setAnnouncements(fetched);
       }
 
-      // Fetch next pickup from schedules
-      const schedulesSnapshot = await db
-        .collection("schedules")
-        .where("type", "==", "collection")
-        .where("status", "==", "scheduled")
-        .limit(1)
-        .get();
-      
-      if (!schedulesSnapshot.empty) {
-        const nextSchedule = schedulesSnapshot.docs[0].data();
-        const dateStr = nextSchedule.date || "--";
-        setNextPickup(dateStr);
+      // Fetch next pickup: the soonest upcoming collection for the user's
+      // sitio (today or later). "--" if the user has no sitio set.
+      const userSitio = userData?.sitio;
+      if (!userSitio) {
+        setNextPickup("--");
+      } else {
+        const schedulesSnapshot = await db
+          .collection("schedules")
+          .where("type", "==", "collection")
+          .where("sitio", "==", userSitio)
+          .where("status", "==", "scheduled")
+          .get();
+
+        const today = startOfToday();
+        const upcoming = schedulesSnapshot.docs
+          .map((doc) => ({ ...doc.data() }))
+          .map((schedule) => ({
+            ...schedule,
+            parsedDate: parseScheduleDate(schedule.date),
+          }))
+          .filter((schedule) => schedule.parsedDate && schedule.parsedDate >= today)
+          .sort((a, b) => a.parsedDate - b.parsedDate);
+
+        setNextPickup(
+          upcoming.length > 0 ? formatPickupLabel(upcoming[0].parsedDate) : "--"
+        );
       }
 
       // Fetch total scans (redemptions)
@@ -113,9 +185,9 @@ export default function Home({ navigation }) {
         <View>
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <Text style={styles.userName}>{userData?.name || "User"}</Text>
-          {userData?.role === "admin" && (
+          {canViewAdminPanel(userData) && (
             <TouchableOpacity onPress={() => navigation.navigate("AdminHome")}>
-              <Text style={styles.adminBadge}>ADMIN PANEL</Text>
+              <Text style={styles.adminBadge}>{roleLabel(userData)}</Text>
             </TouchableOpacity>
           )}
         </View>

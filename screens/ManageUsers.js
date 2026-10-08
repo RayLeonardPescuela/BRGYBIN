@@ -15,10 +15,25 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { db } from "../config/firebase";
+import { useUser } from "../config/UserContext";
+import {
+  ROLES,
+  ROLE_LABELS,
+  ROLE_DESCRIPTIONS,
+  ROLE_COLORS,
+  canManageUsers,
+} from "../config/roles";
 import shared, { COLORS } from "../styles";
 
 export default function ManageUsers({ navigation }) {
+  const { userData } = useUser();
   const [activeTab, setActiveTab] = useState("users");
+
+  // --- Role picker state ---
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
+  const [roleTarget, setRoleTarget] = useState(null);
+  const [pickedRole, setPickedRole] = useState("user");
+  const [savingRole, setSavingRole] = useState(false);
 
   // --- Users state ---
   const [users, setUsers] = useState([]);
@@ -56,18 +71,32 @@ export default function ManageUsers({ navigation }) {
     }
   };
 
-  const toggleRole = async (userId, currentRole) => {
-    const newRole = currentRole === "admin" ? "user" : "admin";
-    Alert.alert("Change Role", `Make this user ${newRole}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Yes",
-        onPress: async () => {
-          await db.collection("users").doc(userId).update({ role: newRole });
-          fetchUsers();
-        },
-      },
-    ]);
+  const openRolePicker = (user) => {
+    setRoleTarget(user);
+    setPickedRole(user.role || "user");
+    setRoleModalVisible(true);
+  };
+
+  const saveRole = async () => {
+    if (!roleTarget) return;
+    if (pickedRole === roleTarget.role) {
+      setRoleModalVisible(false);
+      return;
+    }
+    setSavingRole(true);
+    try {
+      await db
+        .collection("users")
+        .doc(roleTarget.id)
+        .update({ role: pickedRole });
+      setRoleModalVisible(false);
+      fetchUsers();
+    } catch (error) {
+      console.log("Error updating role:", error);
+      Alert.alert("Error", "Failed to update role");
+    } finally {
+      setSavingRole(false);
+    }
   };
 
   const deleteUser = async (userId) => {
@@ -93,8 +122,13 @@ export default function ManageUsers({ navigation }) {
         <Text style={styles.userName}>{item.name}</Text>
         <Text style={styles.userEmail}>{item.email}</Text>
         <View style={styles.userMeta}>
-          <Text style={[styles.roleBadge, item.role === "admin" && styles.adminBadge]}>
-            {item.role?.toUpperCase() || "USER"}
+          <Text
+            style={[
+              styles.roleBadge,
+              { backgroundColor: ROLE_COLORS[item.role] || ROLE_COLORS.user },
+            ]}
+          >
+            {ROLE_LABELS[item.role] || "USER"}
           </Text>
           <Text style={styles.pointsText}>{item.points || 0} pts</Text>
         </View>
@@ -102,7 +136,7 @@ export default function ManageUsers({ navigation }) {
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.actionBtn}
-          onPress={() => toggleRole(item.id, item.role)}
+          onPress={() => openRolePicker(item)}
         >
           <MaterialCommunityIcons name="account-cog" size={22} color="#4A90E2" />
         </TouchableOpacity>
@@ -253,6 +287,25 @@ export default function ManageUsers({ navigation }) {
   );
 
   // ===================== RENDER =====================
+
+  // Only the Main Admin can manage users, roles and sitios
+  if (userData && !canManageUsers(userData)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-double-left" size={35} color="#4A90E2" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Manage Users</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.center}>
+          <MaterialCommunityIcons name="lock" size={60} color={COLORS.textMuted} />
+          <Text style={styles.emptyText}>Main Admin access required</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -409,6 +462,63 @@ export default function ManageUsers({ navigation }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Role Picker Modal */}
+      <Modal visible={roleModalVisible} animationType="fade" transparent>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setRoleModalVisible(false)}
+          />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Change Role</Text>
+            <Text style={styles.roleTargetName}>{roleTarget?.name}</Text>
+
+            {ROLES.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[styles.roleOption, pickedRole === r && styles.roleOptionActive]}
+                onPress={() => setPickedRole(r)}
+              >
+                <View style={[styles.roleDot, { backgroundColor: ROLE_COLORS[r] }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.roleOptionLabel}>{ROLE_LABELS[r]}</Text>
+                  <Text style={styles.roleOptionDesc}>{ROLE_DESCRIPTIONS[r]}</Text>
+                </View>
+                <MaterialCommunityIcons
+                  name={pickedRole === r ? "radiobox-marked" : "radiobox-blank"}
+                  size={22}
+                  color={pickedRole === r ? COLORS.primary : COLORS.textMuted}
+                />
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setRoleModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, savingRole && { opacity: 0.6 }]}
+                onPress={saveRole}
+                disabled={savingRole}
+              >
+                {savingRole ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -515,4 +625,22 @@ const styles = StyleSheet.create({
   modalCancelText: { fontWeight: "bold", fontFamily: "sans-serif", fontSize: 16 },
   modalSaveBtn: { flex: 1, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
   modalSaveText: { color: COLORS.white, fontWeight: "bold", fontFamily: "sans-serif", fontSize: 16 },
+
+  // Role picker
+  roleTargetName: { fontSize: 14, color: COLORS.textSecondary, textAlign: "center", marginBottom: 15, fontFamily: "sans-serif" },
+  roleOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  roleOptionActive: { borderColor: COLORS.primary, backgroundColor: COLORS.white },
+  roleDot: { width: 14, height: 14, borderRadius: 7 },
+  roleOptionLabel: { fontSize: 15, fontWeight: "bold", fontFamily: "sans-serif" },
+  roleOptionDesc: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "sans-serif", marginTop: 2 },
 });

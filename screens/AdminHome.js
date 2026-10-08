@@ -12,6 +12,7 @@ import { useUser } from "../config/UserContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { db } from "../config/firebase";
 import shared, { COLORS } from "../styles";
+import { canViewAdminPanel, roleLabel } from "../config/roles";
 
 export default function AdminHome({ navigation }) {
   const { userData } = useUser();
@@ -77,6 +78,20 @@ export default function AdminHome({ navigation }) {
     return "Good evening,";
   };
 
+  // Only Main Admin / Collector may open this panel
+  if (userData && !canViewAdminPanel(userData)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <MaterialCommunityIcons name="lock" size={60} color="#999" />
+          <Text style={{ fontSize: 16, marginTop: 10, color: "#666" }}>
+            Admin access required
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
@@ -84,7 +99,7 @@ export default function AdminHome({ navigation }) {
         <View>
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <Text style={styles.userName}>{userData?.name || "Admin"}</Text>
-          <Text style={styles.roleBadge}>ADMIN</Text>
+          <Text style={styles.roleBadge}>{roleLabel(userData)}</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate("profile")}>
           <Ionicons name="person-circle-outline" size={45} color="#3E5C3E" />
