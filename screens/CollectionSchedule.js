@@ -20,6 +20,7 @@ import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
 import { canEditSchedule, canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
+import TimePickerField from "../components/TimePickerField";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -405,14 +406,8 @@ export default function CollectionSchedule({ navigation }) {
               onChangeText={setRequestDate}
             />
 
-            <Text style={styles.modalLabel}>Time (e.g., 8:00 AM)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter time"
-              placeholderTextColor={COLORS.textMuted}
-              value={requestTime}
-              onChangeText={setRequestTime}
-            />
+            <Text style={styles.modalLabel}>Time</Text>
+            <TimePickerField value={requestTime} onChange={setRequestTime} />
 
             <Text style={styles.modalLabel}>Sitio</Text>
             <TouchableOpacity

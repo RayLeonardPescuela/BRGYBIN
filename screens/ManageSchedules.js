@@ -23,6 +23,7 @@ import {
   canDelete,
 } from "../config/roles";
 import shared, { COLORS } from "../styles";
+import TimePickerField from "../components/TimePickerField";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -391,13 +392,10 @@ export default function ManageSchedules({ navigation }) {
                 onChangeText={(text) => setNewSchedule({ ...newSchedule, date: text })}
               />
 
-              <Text style={styles.label}>Time (e.g., 8:00 AM)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter time"
-                placeholderTextColor={COLORS.textMuted}
+              <Text style={styles.label}>Time</Text>
+              <TimePickerField
                 value={newSchedule.time}
-                onChangeText={(text) => setNewSchedule({ ...newSchedule, time: text })}
+                onChange={(time) => setNewSchedule({ ...newSchedule, time })}
               />
 
               {newSchedule.type === "collection" ? (

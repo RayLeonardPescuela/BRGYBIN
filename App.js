@@ -7,6 +7,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { useEffect, useRef } from "react";
 import { UserProvider } from "./config/UserContext";
 import { auth } from "./config/firebase";
+import { initNotifications } from "./config/reminders";
 
 import StartScreen from "./screens/StartScreen";
 import Getstarted from "./screens/Getstarted";
@@ -77,6 +78,12 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     RubikBurned: require("./assets/fonts/RubikBurned-Regular.ttf"),
   });
+
+  // Reminder foundation: display handler + Android channel + permission.
+  // Runs before any notification is ever scheduled.
+  useEffect(() => {
+    initNotifications();
+  }, []);
 
   if (!fontsLoaded) {
     return null;

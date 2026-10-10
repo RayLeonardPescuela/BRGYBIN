@@ -19,6 +19,7 @@ import { db } from "../config/firebase";
 import { useUser } from "../config/UserContext";
 import { canEditSchedule, canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
+import TimePickerField from "../components/TimePickerField";
 
 const colors = [
   { bgColor: "#3E5C3E", iconColor: "#A8D5BA" },
@@ -234,13 +235,7 @@ export default function CleaningSchedule({ navigation }) {
             />
 
             <Text style={styles.modalLabel}>Time</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editTime}
-              onChangeText={setEditTime}
-              placeholder="Enter time"
-              placeholderTextColor={COLORS.textMuted}
-            />
+            <TimePickerField value={editTime} onChange={setEditTime} />
 
             <Text style={styles.modalLabel}>Note (optional)</Text>
             <TextInput
