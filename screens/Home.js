@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import Navbar from "../components/Navbar";
+import NotificationBadge from "../components/NotificationBadge";
 import { useUser } from "../config/UserContext";
+import { useUnreadCount } from "../config/unreadNotifications";
 import { db } from "../config/firebase";
 import shared, { COLORS } from "../styles";
 import { canViewAdminPanel, roleLabel } from "../config/roles";
@@ -36,6 +38,10 @@ export default function Home({ navigation }) {
   const [totalScans, setTotalScans] = useState(0);
   const [recentActivity, setRecentActivity] = useState([]);
   const [announcements, setAnnouncements] = useState(defaultAnnouncements);
+
+  // Unread badge on the notification bell. Counts exactly the set the
+  // inbox can display, so "Mark all as read" always empties it.
+  const { count: unreadCount } = useUnreadCount();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -223,7 +229,10 @@ export default function Home({ navigation }) {
             style={styles.gridItem}
             onPress={() => navigation.navigate("Notification")}
           >
-            <MaterialCommunityIcons name="bell-outline" size={36} color="#FFF" />
+            <View style={styles.bellIconWrap}>
+              <MaterialCommunityIcons name="bell-outline" size={36} color="#FFF" />
+              <NotificationBadge count={unreadCount} />
+            </View>
             <Text style={styles.gridLabel}>Notifications</Text>
           </TouchableOpacity>
 
@@ -283,6 +292,14 @@ const styles = StyleSheet.create({
   grid: shared.grid,
   gridItem: shared.gridItem,
   gridLabel: shared.gridLabel,
+  // Anchors the badge to the icon's corner. Sized to the icon so the
+  // absolute offset is measured from the bell, not the whole tile.
+  bellIconWrap: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   activityCard: shared.activityCard,
   activityInfo: shared.activityInfo,
   activityTitle: shared.activityTitle,

@@ -10,58 +10,29 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Navbar from "../components/Navbar";
+import NotificationBadge from "../components/NotificationBadge";
 import { db, FieldValue } from "../config/firebase";
 import { useUser } from "../config/UserContext";
-import { canViewAdminPanel } from "../config/roles";
-import { normalizeSitio } from "../config/reminders";
 import shared, { COLORS } from "../styles";
+// Read state, sitio scoping and the fetch itself are shared with the
+// dashboard badge. Keeping one copy guarantees the badge counts exactly
+// the rows this screen can show — otherwise "Mark all as read" could
+// empty the list while the badge stayed stuck on a number the user has
+// no way to clear. Rationale is documented in that module.
+import {
+  isRead,
+  addUnique,
+  fetchVisibleNotifications,
+  countUnread,
+  NOTIFICATIONS_DISPLAY_LIMIT,
+} from "../config/unreadNotifications";
 
 /* ------------------------------------------------------------
- * READ STATE — per user, not per notification
- *
- * The old model stored ONE boolean (`read`) on the shared doc, so the
- * first resident to tap a notification marked it read for EVERYONE:
- * the badge emptied across the whole barangay and the unread styling
- * vanished for people who never opened it.
- *
- * Read state now lives in a `readBy` array; each reader appends their
- * own uid.
- *
- * Legacy docs still carry `read` and no `readBy`. Honouring
- * `read === true` keeps old broadcasts visibly read instead of
- * flipping them back to unread for everyone. No migration is needed:
- * `read` is never written again, so legacy `false` values retire on
- * their own while legacy `true` keeps applying on top. The moment
- * someone taps a legacy doc it begins tracking per-user state too.
+ * Read state (`isRead`), sitio scoping (`visibleTo`), `addUnique` and
+ * the fetch all moved to config/unreadNotifications.js so the
+ * dashboard's unread badge and this inbox share one definition. This
+ * screen only renders and mutates.
  * ------------------------------------------------------------ */
-const isRead = (notification, uid) =>
-  notification.read === true ||
-  (Array.isArray(notification.readBy) && notification.readBy.includes(uid));
-
-// Mirrors what arrayUnion will do on the server, for optimistic state.
-const addUnique = (list, value) =>
-  Array.isArray(list) && list.includes(value) ? list : [...(list || []), value];
-
-/* ------------------------------------------------------------
- * SITIO SCOPING
- *
- *   staff              -> the whole barangay
- *   "All Sitios"       -> empty/missing sitio, so everyone sees it
- *   a resident         -> barangay-wide plus their own sitio
- *   resident w/o sitio -> barangay-wide only (they match no specific one)
- *
- * Compared normalized, so a stray space or capital in a sitio name
- * cannot silently hide an announcement.
- * ------------------------------------------------------------ */
-const visibleTo = (notification, userData) => {
-  if (canViewAdminPanel(userData)) return true;
-
-  const targeted = normalizeSitio(notification.sitio);
-  if (!targeted) return true; // "All Sitios"
-
-  const mine = normalizeSitio(userData?.sitio);
-  return !!mine && targeted === mine;
-};
 
 export default function Notification({ navigation }) {
   const { user, userData } = useUser();
@@ -77,21 +48,9 @@ export default function Notification({ navigation }) {
 
   const fetchNotifications = async () => {
     try {
-      const snapshot = await db
-        .collection("notifications")
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .get();
-
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      // Scoped to this user's role + sitio (see visibleTo above).
-      const filtered = data.filter((n) => visibleTo(n, userData));
-
-      setNotifications(filtered.slice(0, 20));
+      // Identical query, sitio filter and cap to what the dashboard
+      // badge counts against — see config/unreadNotifications.js.
+      setNotifications(await fetchVisibleNotifications(userData));
     } catch (error) {
       console.log("Error fetching notifications:", error);
     } finally {
@@ -180,7 +139,8 @@ export default function Notification({ navigation }) {
     return `${diffDays}d ago`;
   };
 
-  const unreadCount = notifications.filter((n) => !isRead(n, uid)).length;
+  // Same helper the dashboard badge uses, so the two counts cannot drift.
+  const unreadCount = countUnread(notifications, uid);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -197,12 +157,8 @@ export default function Notification({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notification</Text>
         <View style={styles.bellContainer}>
-          <MaterialCommunityIcons name="bell-badge" size={35} color="black" />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount}</Text>
-            </View>
-          )}
+          <MaterialCommunityIcons name="bell-outline" size={35} color="black" />
+          <NotificationBadge count={unreadCount} />
         </View>
       </View>
 
@@ -274,8 +230,6 @@ const styles = StyleSheet.create({
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10, flex: 1 }],
   bellContainer: { position: "relative" },
-  badge: { position: "absolute", top: -5, right: -5, backgroundColor: "#EF5350", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" },
-  badgeText: { color: COLORS.white, fontSize: 12, fontWeight: "bold" },
   divider: { height: 1, backgroundColor: COLORS.grayLine },
   subHeader: { flexDirection: "row", justifyContent: "space-between", padding: 15 },
   subHeaderText: { fontSize: 18, color: COLORS.brownDark, fontFamily: "sans-serif" },
