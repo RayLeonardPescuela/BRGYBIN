@@ -16,6 +16,8 @@
 //   - Collector QR codes: one per day, own doc id {uid}_{day}, points must be
 //     one of the fixed presets in config/collectorQr (that doc: admin-write only)
 //   - Scanning may only append the scanner's own uid to scannedBy, never twice
+//   - Notification read state is per-user: a resident may only append their
+//     own uid to readBy, and cannot edit a broadcast's text
 //
 // WARNING: test the app after publishing. If a flow breaks, roll back
 // from the Rules tab history (Firebase keeps previous versions).
@@ -116,7 +118,21 @@ service cloud.firestore {
     match /notifications/{id} {
       allow read: if isSignedIn();
       allow create: if isAdmin();             // only Main Admin broadcasts
-      allow update: if isSignedIn();          // anyone may mark their copy as read
+
+      // Read state is per-user (the `readBy` array). A resident may only
+      // APPEND their own uid — they cannot edit the broadcast text, and
+      // cannot remove anyone else's uid. Mirrors the scannedBy rule below.
+      //
+      // This used to be a bare `allow update: if isSignedIn()`, which let
+      // any signed-in resident rewrite the title/message of a broadcast
+      // seen by the whole barangay, or clear everyone else's read state.
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readBy"])
+                        && (!("readBy" in resource.data)
+                            || (!resource.data.readBy.hasAny([request.auth.uid])
+                                && request.resource.data.readBy.hasAll(resource.data.readBy))));
+
       allow delete: if isAdmin();
     }
 

@@ -67,7 +67,10 @@ export default function CreateNotification({ navigation }) {
         sitio: selectedSitio || "",
         sentBy: userData?.name || "Admin",
         createdAt: new Date().toISOString(),
-        read: false,
+        // Per-user read state: each reader appends their own uid.
+        // Replaces the old shared `read` boolean, where one resident's
+        // tap marked the notification read for the entire barangay.
+        readBy: [],
       });
 
       Alert.alert("Success", "Notification sent!");

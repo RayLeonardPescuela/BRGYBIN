@@ -25,4 +25,6 @@ if (!firebase.apps.length) {
 export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const storage = firebase.storage();
+// Needed for arrayUnion/arrayRemove (e.g. per-user notification read state).
+export const FieldValue = firebase.firestore.FieldValue;
 export default firebase;

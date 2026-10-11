@@ -10,12 +10,62 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Navbar from "../components/Navbar";
-import { db } from "../config/firebase";
+import { db, FieldValue } from "../config/firebase";
 import { useUser } from "../config/UserContext";
+import { canViewAdminPanel } from "../config/roles";
+import { normalizeSitio } from "../config/reminders";
 import shared, { COLORS } from "../styles";
 
+/* ------------------------------------------------------------
+ * READ STATE — per user, not per notification
+ *
+ * The old model stored ONE boolean (`read`) on the shared doc, so the
+ * first resident to tap a notification marked it read for EVERYONE:
+ * the badge emptied across the whole barangay and the unread styling
+ * vanished for people who never opened it.
+ *
+ * Read state now lives in a `readBy` array; each reader appends their
+ * own uid.
+ *
+ * Legacy docs still carry `read` and no `readBy`. Honouring
+ * `read === true` keeps old broadcasts visibly read instead of
+ * flipping them back to unread for everyone. No migration is needed:
+ * `read` is never written again, so legacy `false` values retire on
+ * their own while legacy `true` keeps applying on top. The moment
+ * someone taps a legacy doc it begins tracking per-user state too.
+ * ------------------------------------------------------------ */
+const isRead = (notification, uid) =>
+  notification.read === true ||
+  (Array.isArray(notification.readBy) && notification.readBy.includes(uid));
+
+// Mirrors what arrayUnion will do on the server, for optimistic state.
+const addUnique = (list, value) =>
+  Array.isArray(list) && list.includes(value) ? list : [...(list || []), value];
+
+/* ------------------------------------------------------------
+ * SITIO SCOPING
+ *
+ *   staff              -> the whole barangay
+ *   "All Sitios"       -> empty/missing sitio, so everyone sees it
+ *   a resident         -> barangay-wide plus their own sitio
+ *   resident w/o sitio -> barangay-wide only (they match no specific one)
+ *
+ * Compared normalized, so a stray space or capital in a sitio name
+ * cannot silently hide an announcement.
+ * ------------------------------------------------------------ */
+const visibleTo = (notification, userData) => {
+  if (canViewAdminPanel(userData)) return true;
+
+  const targeted = normalizeSitio(notification.sitio);
+  if (!targeted) return true; // "All Sitios"
+
+  const mine = normalizeSitio(userData?.sitio);
+  return !!mine && targeted === mine;
+};
+
 export default function Notification({ navigation }) {
-  const { userData } = useUser();
+  const { user, userData } = useUser();
+  const uid = user?.uid;
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,11 +88,8 @@ export default function Notification({ navigation }) {
         ...doc.data(),
       }));
 
-      // Filter by user's sitio (show notifications with matching sitio or no sitio / "All Sitios")
-      const userSitio = userData?.sitio;
-      const filtered = userSitio
-        ? data.filter((n) => !n.sitio || n.sitio === "" || n.sitio === userSitio)
-        : data;
+      // Scoped to this user's role + sitio (see visibleTo above).
+      const filtered = data.filter((n) => visibleTo(n, userData));
 
       setNotifications(filtered.slice(0, 20));
     } catch (error) {
@@ -53,10 +100,20 @@ export default function Notification({ navigation }) {
   };
 
   const markAsRead = async (notifId) => {
+    if (!uid) return;
+
     try {
-      await db.collection("notifications").doc(notifId).update({ read: true });
+      // arrayUnion appends MY uid only. Everyone else keeps their own
+      // read state — this is the fix for the shared-boolean bug.
+      await db
+        .collection("notifications")
+        .doc(notifId)
+        .update({ readBy: FieldValue.arrayUnion(uid) });
+
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
+        prev.map((n) =>
+          n.id === notifId ? { ...n, readBy: addUnique(n.readBy, uid) } : n
+        )
       );
     } catch (error) {
       console.log("Error marking as read:", error);
@@ -64,12 +121,30 @@ export default function Notification({ navigation }) {
   };
 
   const markAllAsRead = async () => {
+    if (!uid) return;
+
+    const unread = notifications.filter((n) => !isRead(n, uid));
+    if (unread.length === 0) return;
+
     try {
-      const unread = notifications.filter((n) => !n.read);
-      for (const n of unread) {
-        await db.collection("notifications").doc(n.id).update({ read: true });
-      }
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      // One batch instead of one write per row: up to 20 round trips
+      // collapse into a single commit, and the inbox cannot be left
+      // half-marked if one write fails.
+      const batch = db.batch();
+      unread.forEach((n) => {
+        batch.update(db.collection("notifications").doc(n.id), {
+          readBy: FieldValue.arrayUnion(uid),
+        });
+      });
+      await batch.commit();
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          unread.some((u) => u.id === n.id)
+            ? { ...n, readBy: addUnique(n.readBy, uid) }
+            : n
+        )
+      );
     } catch (error) {
       console.log("Error marking all as read:", error);
     }
@@ -105,7 +180,7 @@ export default function Notification({ navigation }) {
     return `${diffDays}d ago`;
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !isRead(n, uid)).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,9 +237,12 @@ export default function Notification({ navigation }) {
                 key={item.id}
                 style={[
                   styles.card,
-                  !item.read && styles.unreadCard,
+                  !isRead(item, uid) && styles.unreadCard,
                 ]}
-                onPress={() => markAsRead(item.id)}
+                onPress={() => {
+                  // No write for an item this user already read.
+                  if (!isRead(item, uid)) markAsRead(item.id);
+                }}
               >
                 <MaterialCommunityIcons
                   name={icon.name}
@@ -179,7 +257,7 @@ export default function Notification({ navigation }) {
                     {formatTime(item.createdAt)}
                   </Text>
                 </View>
-                {!item.read && <View style={styles.unreadDot} />}
+                {!isRead(item, uid) && <View style={styles.unreadDot} />}
               </TouchableOpacity>
             );
           })}
