@@ -18,6 +18,8 @@
 //   - Scanning may only append the scanner's own uid to scannedBy, never twice
 //   - Notification read state is per-user: a resident may only append their
 //     own uid to readBy, and cannot edit a broadcast's text
+//   - Push tokens and the reminder send-log are owner/admin only, so a
+//     resident cannot suppress a neighbourhood's reminders
 //
 // WARNING: test the app after publishing. If a flow breaks, roll back
 // from the Rules tab history (Firebase keeps previous versions).
@@ -134,6 +136,26 @@ service cloud.firestore {
                                 && request.resource.data.readBy.hasAll(resource.data.readBy))));
 
       allow delete: if isAdmin();
+    }
+
+    // ---------- push tokens (one doc per device owner) ----------
+    // Written by the app at login; read by the reminder cron to decide
+    // who to notify. The cron uses admin credentials, which bypass
+    // rules, so these only constrain the app itself.
+    match /pushTokens/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ---------- reminder send log (idempotency ledger) ----------
+    // Created by the cron with a deterministic id per
+    // (schedule, sitio, offset). Its existence is what stops a repeated
+    // run from double-sending. Admin-only; residents have no reason to
+    // touch it, and allowing them to would let someone suppress a
+    // neighbourhood's reminders.
+    match /reminderLog/{id} {
+      allow read, write: if isAdmin();
     }
 
     // ---------- reward items ----------

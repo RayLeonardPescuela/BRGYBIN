@@ -20,7 +20,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import Navbar from "../components/Navbar";
 import { useUser } from "../config/UserContext";
-import { auth, db } from "../config/firebase";
+import { db } from "../config/firebase";
+import { signOutAndCleanup } from "../config/reminders";
 import shared, { COLORS } from "../styles";
 
 export default function Profile({ navigation }) {
@@ -127,7 +128,7 @@ export default function Profile({ navigation }) {
 
   const handleLogout = async () => {
     try {
-      await auth.signOut();
+      await signOutAndCleanup();
       navigation.reset({ index: 0, routes: [{ name: "Start" }] });
     } catch (e) {
       console.log("Sign out error:", e);

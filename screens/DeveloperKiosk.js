@@ -18,6 +18,9 @@ import {
   syncCollectionReminders,
   cancelAllLocalReminders,
   resolveDeliveryMode,
+  hasPushToken,
+  getPushToken,
+  registerPushToken,
 } from "../config/reminders";
 import * as Notifications from "expo-notifications";
 
@@ -53,18 +56,23 @@ const developers = [
 export default function DeveloperKiosk({ navigation }) {
   const { user, userData } = useUser();
   const [armed, setArmed] = useState(0);
+  const [pushStatus, setPushStatus] = useState("not registered");
 
-  const refreshArmed = async () => {
+  const refreshStatus = async () => {
     try {
       const all = await Notifications.getAllScheduledNotificationsAsync();
       setArmed(all.length);
     } catch (error) {
       setArmed(0);
     }
+    const token = getPushToken();
+    setPushStatus(
+      hasPushToken() ? `registered · ${(token || "").slice(0, 30)}…` : "no push token"
+    );
   };
 
   useEffect(() => {
-    refreshArmed();
+    refreshStatus();
   }, []);
 
   const onTest = async () => {
@@ -75,7 +83,7 @@ export default function DeveloperKiosk({ navigation }) {
         ? "Fires in 60 seconds. Kill the app now to prove the alarm survives."
         : "Notification permission is not granted."
     );
-    refreshArmed();
+    refreshStatus();
   };
 
   const onSync = async () => {
@@ -85,13 +93,24 @@ export default function DeveloperKiosk({ navigation }) {
       `Mode: ${result.mode}\nArmed: ${result.scheduled}` +
         (result.reason ? `\nSkipped: ${result.reason}` : "")
     );
-    refreshArmed();
+    refreshStatus();
+  };
+
+  const onPush = async () => {
+    const token = await registerPushToken(user, userData);
+    Alert.alert(
+      token ? "Push registered" : "Push unavailable",
+      token
+        ? `Token:\n${token}\n\nThe server cron can now reach this device, and local alarms will stand down once the mode is flipped.`
+        : "Push needs a development/EAS build. Expo Go on Android cannot receive push since SDK 53, so this device keeps using local alarms."
+    );
+    refreshStatus();
   };
 
   const onCancel = async () => {
     await cancelAllLocalReminders();
     Alert.alert("Cancelled", "All local alarms cleared.");
-    refreshArmed();
+    refreshStatus();
   };
 
   return (
@@ -159,12 +178,13 @@ export default function DeveloperKiosk({ navigation }) {
           ))}
         </View>
 
-        {/* Dev-only reminder diagnostics (Phase 2 checkpoint) */}
+        {/* Dev-only reminder diagnostics */}
         <View style={styles.devToolBox}>
           <Text style={styles.devToolTitle}>Reminder diagnostics</Text>
           <Text style={styles.devToolStatus}>
             {armed} alarm(s) armed · mode: {resolveDeliveryMode()}
           </Text>
+          <Text style={styles.devToolStatus}>Push: {pushStatus}</Text>
 
           <View style={styles.devToolRow}>
             <TouchableOpacity style={styles.devToolBtn} onPress={onTest}>
@@ -177,7 +197,15 @@ export default function DeveloperKiosk({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.devToolBtnWide} onPress={onCancel}>
+          <TouchableOpacity style={styles.devToolBtnWide} onPress={onPush}>
+            <MaterialCommunityIcons name="cloud-upload-outline" size={18} color="#FFF" />
+            <Text style={styles.devToolBtnText}>Register push token</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.devToolBtnWide, styles.devToolBtnDanger]}
+            onPress={onCancel}
+          >
             <MaterialCommunityIcons name="bell-cancel-outline" size={18} color="#FFF" />
             <Text style={styles.devToolBtnText}>Cancel all alarms</Text>
           </TouchableOpacity>
@@ -217,6 +245,7 @@ const styles = StyleSheet.create({
   devToolStatus: { fontSize: 13, fontFamily: "sans-serif", color: COLORS.textSecondary, marginBottom: 12 },
   devToolRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
   devToolBtn: { flex: 1, flexDirection: "row", backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center", gap: 6 },
-  devToolBtnWide: { flexDirection: "row", backgroundColor: COLORS.red, borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center", gap: 6 },
+  devToolBtnWide: { flexDirection: "row", backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10 },
+  devToolBtnDanger: { backgroundColor: COLORS.red, marginBottom: 0 },
   devToolBtnText: { color: COLORS.white, fontFamily: "sans-serif", fontWeight: "bold", fontSize: 14 },
 });

@@ -1,0 +1,4 @@
+{
+  "type": "module",
+  "_comment": "Marks this folder as ES modules for Node without touching the app's root package.json (which must stay CommonJS for Metro/Expo). Lets scripts/send-reminders.mjs import the exact same logic the phone uses."
+}

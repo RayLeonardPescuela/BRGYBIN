@@ -6,8 +6,7 @@ import { useFonts } from "expo-font";
 import * as NavigationBar from "expo-navigation-bar";
 import { useEffect, useRef } from "react";
 import { UserProvider } from "./config/UserContext";
-import { auth } from "./config/firebase";
-import { initNotifications } from "./config/reminders";
+import { initNotifications, signOutAndCleanup } from "./config/reminders";
 import { useLastNotificationResponse } from "expo-notifications";
 
 import StartScreen from "./screens/StartScreen";
@@ -53,7 +52,7 @@ function BackButtonHandler() {
         if (now - lastPressRef.current < 2000) {
           lastPressRef.current = 0;
           Promise.race([
-            auth.signOut(),
+            signOutAndCleanup(),
             new Promise((resolve) => setTimeout(resolve, 1000)),
           ]).finally(() => BackHandler.exitApp());
           return true;

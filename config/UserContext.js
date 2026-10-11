@@ -4,6 +4,7 @@ import { auth, db } from "../config/firebase";
 import {
   syncCollectionReminders,
   cancelAllLocalReminders,
+  registerPushToken,
 } from "./reminders";
 
 const UserContext = createContext();
@@ -53,9 +54,15 @@ export function UserProvider({ children }) {
     if (loading) return;
 
     if (user && userData) {
-      // Idempotent: syncCollectionReminders() cancel-alls first,
-      // so calling it repeatedly never duplicates alarms.
-      syncCollectionReminders(user, userData);
+      // Register for server-side push FIRST, then arm local alarms.
+      // Order matters: syncCollectionReminders() asks hasPushToken() to
+      // decide whether this device owns its own delivery, so registering
+      // after the sync would arm alarms a device in "server" mode should
+      // not have. Both are idempotent, so re-running on sitio/role change
+      // never duplicates anything.
+      registerPushToken(user, userData)
+        .catch(() => {})
+        .then(() => syncCollectionReminders(user, userData));
     } else if (!user) {
       cancelAllLocalReminders();
     }

@@ -1,0 +1,93 @@
+# ============================================================
+# Collection reminder push — the "server" delivery path
+#
+# Runs every 5 minutes (GitHub's minimum cron granularity). Each run
+# works out which T-10 / T-5 reminders are due and sends them through
+# the Expo Push Service, which delivers over FCM on Android. This is
+# what reaches a resident who installed the app but never reopened it —
+# the one gap the phone's own alarms cannot cover.
+#
+# IDEMPOTENCY: the script claims each reminder by creating a Firestore
+# doc with a deterministic id, so a repeated or overlapping run never
+# double-sends. The concurrency group below also stops runs racing.
+#
+# COST: $0.
+#   GitHub Actions  -> free and unlimited for public repos
+#   Expo push svc   -> free and unmetered
+#   Service account -> free on the Firebase Spark plan
+#   No Cloud Functions, so no Blaze plan and no card on file.
+#
+# ---- ONE-TIME SETUP ----
+#   1. Firebase console -> Project "brngybindb" -> Project settings
+#      -> Service accounts -> "Generate new private key"
+#      (free; requires no billing account)
+#   2. GitHub repo -> Settings -> Secrets and variables -> Actions
+#      -> New repository secret
+#      Name:  FIREBASE_SERVICE_ACCOUNT
+#      Value: the entire contents of the downloaded JSON file
+#   3. Settings -> Actions -> General -> Workflow permissions:
+#      make sure repository workflows are allowed to run
+#
+# ---- WARNING ----
+# GitHub automatically DISABLES scheduled workflows after 60 days with
+# no repository activity. Pushing any commit, or toggling the workflow
+# back on from the Actions tab, resets that clock. Check the Actions tab
+# if reminders suddenly stop.
+#
+# Scheduled workflows only run from the DEFAULT branch (main).
+# ============================================================
+
+name: Send collection reminders
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  # Manual trigger, for testing without waiting for the clock.
+  workflow_dispatch: {}
+  # Also run when the reminder logic changes, so a regression is caught
+  # immediately instead of at the next collection.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "shared/**"
+      - ".github/workflows/reminders.yml"
+
+concurrency:
+  # Never let two runs race each other. A slightly delayed reminder is
+  # far better than a duplicated one.
+  group: send-reminders
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    # Keeps a stuck run from piling up against the 5-minute schedule.
+    timeout-minutes: 5
+
+    env:
+      # THE RUNNER IS UTC. Schedule times are stored as local wall-clock
+      # values ("2026-10-14" + "8:00 AM"), so without this every reminder
+      # would fire 8 hours late. Change this if the barangay is elsewhere.
+      TZ: Asia/Manila
+      FIREBASE_PROJECT_ID: brngybindb
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Send due reminders
+        run: node scripts/send-reminders.mjs

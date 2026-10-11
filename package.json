@@ -6,7 +6,11 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "npm run test:reminders && node tests/rules-structure.test.mjs",
+    "test:reminders": "node tests/reminder-parsers.test.mjs && node tests/reminder-due.test.mjs && node tests/reminder-targeting.test.mjs",
+    "reminders:dry": "node scripts/send-reminders.mjs --dry-run",
+    "reminders:send": "node scripts/send-reminders.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -16,6 +20,7 @@
     "@react-navigation/native-stack": "^7.11.0",
     "expo": "~57.0.26",
     "expo-camera": "~57.0.6",
+    "expo-constants": "~57.0.21",
     "expo-file-system": "~57.0.7",
     "expo-image-picker": "~57.0.20",
     "expo-navigation-bar": "~57.0.3",
@@ -33,5 +38,8 @@
     "react-native-web": "^0.21.0",
     "yaml": "^2.9.1"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "firebase-admin": "^14.5.0"
+  }
 }
