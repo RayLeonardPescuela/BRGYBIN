@@ -24,6 +24,11 @@ import { db } from "../config/firebase";
 import { signOutAndCleanup } from "../config/reminders";
 import shared, { COLORS } from "../styles";
 
+// Firestore caps a document at 1 MiB. The photo shares the user doc with
+// name, email, points and sitio, so stay well clear of the ceiling rather
+// than letting the write get rejected outright.
+const MAX_PHOTO_CHARS = 900 * 1024;
+
 export default function Profile({ navigation }) {
   const { user, userData, refreshUserData } = useUser();
   const [profileImage, setProfileImage] = useState(null);
@@ -32,6 +37,10 @@ export default function Profile({ navigation }) {
   const [profileEmail, setProfileEmail] = useState("");
   const [profilePoints, setProfilePoints] = useState(0);
   const [pendingImage, setPendingImage] = useState(null);
+  // Raw base64 from the picker, held alongside the preview URI so saving
+  // needs no async decode step.
+  const [pendingBase64, setPendingBase64] = useState(null);
+  const [pendingMime, setPendingMime] = useState("image/jpeg");
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState("");
@@ -84,32 +93,51 @@ export default function Profile({ navigation }) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
+      // The picker decodes to base64 natively. This is the entire fix:
+      // the old path fetched the file:// URI into a Blob and ran
+      // FileReader.readAsDataURL over it, which React Native does not
+      // reliably support. It produced a malformed data URL, so the avatar
+      // rendered as an empty ring and disappeared again on reload.
+      base64: true,
     });
 
     if (!result.canceled) {
-      setPendingImage(result.assets[0].uri);
+      const asset = result.assets[0];
+      setPendingImage(asset.uri);
+      setPendingBase64(asset.base64 || null);
+      setPendingMime(asset.mimeType || "image/jpeg");
     }
   };
 
   const cancelPendingPhoto = () => {
     setPendingImage(null);
+    setPendingBase64(null);
   };
 
   const saveProfilePhoto = async () => {
     if (!pendingImage || !user) return;
 
+    if (!pendingBase64) {
+      Alert.alert(
+        "Could not read photo",
+        "That photo could not be read. Please pick a different one."
+      );
+      return;
+    }
+
+    // Assemble the data URL here rather than decoding a Blob at save time.
+    const base64 = `data:${pendingMime};base64,${pendingBase64}`;
+
+    if (base64.length > MAX_PHOTO_CHARS) {
+      Alert.alert(
+        "Photo too large",
+        "That photo is too large to store in your profile. Please pick a smaller one."
+      );
+      return;
+    }
+
     setSavingPhoto(true);
     try {
-      const response = await fetch(pendingImage);
-      const blob = await response.blob();
-
-      const reader = new FileReader();
-      const base64 = await new Promise((resolve, reject) => {
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-
       await db.collection("users").doc(user.uid).update({
         profileImage: base64,
       });
@@ -117,6 +145,7 @@ export default function Profile({ navigation }) {
       await refreshUserData();
       setProfileImage(base64);
       setPendingImage(null);
+      setPendingBase64(null);
       Alert.alert("Success", "Profile photo updated!");
     } catch (error) {
       console.log("Error saving image:", error);

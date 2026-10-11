@@ -185,7 +185,16 @@ export function configureNotificationHandler() {
  *
  * Reminders must break through Doze, so the channel is MAX importance
  * with sound + vibration.
+ *
+ * Failure here is survivable. expo-notifications falls back to its own
+ * built-in "Miscellaneous" channel, so reminders still display. Expo Go
+ * on Android actually hits this: setNotificationChannelAsync rejects with
+ * a NullPointerException from NotificationsChannelsProvider. It is a
+ * limitation of Expo Go, not a defect in this app — logged once rather
+ * than reprinting a stack trace on every sync.
  * ============================================================ */
+let channelWarned = false;
+
 export async function setupNotificationChannel() {
   if (Platform.OS !== "android") return;
 
@@ -204,7 +213,14 @@ export async function setupNotificationChannel() {
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   } catch (error) {
-    console.log("Error creating notification channel:", error);
+    if (!channelWarned) {
+      channelWarned = true;
+      console.log(
+        `[reminders] could not create the '${NOTIF_CHANNEL_ID}' channel; ` +
+          "expo-notifications falls back to its built-in default channel, " +
+          "so reminders still display. Expected in Expo Go on Android."
+      );
+    }
   }
 }
 
