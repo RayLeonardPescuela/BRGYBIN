@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { Platform, BackHandler, ToastAndroid } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
 import * as NavigationBar from "expo-navigation-bar";
@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { UserProvider } from "./config/UserContext";
 import { auth } from "./config/firebase";
 import { initNotifications } from "./config/reminders";
+import { useLastNotificationResponse } from "expo-notifications";
 
 import StartScreen from "./screens/StartScreen";
 import Getstarted from "./screens/Getstarted";
@@ -79,11 +80,36 @@ export default function App() {
     RubikBurned: require("./assets/fonts/RubikBurned-Regular.ttf"),
   });
 
+  const navigationRef = useNavigationContainerRef();
+  const lastNotificationResponse = useLastNotificationResponse();
+
   // Reminder foundation: display handler + Android channel + permission.
   // Runs before any notification is ever scheduled.
   useEffect(() => {
     initNotifications();
   }, []);
+
+  // Tap-through: opening a reminder lands on the collection schedule.
+  // Retries briefly — a cold start may not have mounted the navigator
+  // yet (fonts are still loading), so isReady() can be false at first.
+  useEffect(() => {
+    if (!lastNotificationResponse) return;
+
+    const data = lastNotificationResponse.notification?.request?.content?.data;
+    if (!data || !data.screen) return;
+
+    let attempts = 0;
+    let timer = setTimeout(function tick() {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate(data.screen);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 20) timer = setTimeout(tick, 500);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [lastNotificationResponse]);
 
   if (!fontsLoaded) {
     return null;
@@ -96,7 +122,7 @@ export default function App() {
   return (
     <UserProvider>
       <BackButtonHandler />
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <StatusBar hidden />
         <Stack.Navigator
           screenOptions={{

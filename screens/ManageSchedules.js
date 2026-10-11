@@ -24,6 +24,10 @@ import {
 } from "../config/roles";
 import shared, { COLORS } from "../styles";
 import TimePickerField from "../components/TimePickerField";
+import {
+  syncCollectionReminders,
+  cancelRemindersForSchedule,
+} from "../config/reminders";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -40,7 +44,7 @@ const formatDateKey = (year, month, day) =>
 const resetSchedule = { type: "collection", date: "", time: "", area: "", sitio: "", note: "" };
 
 export default function ManageSchedules({ navigation }) {
-  const { userData } = useUser();
+  const { user, userData } = useUser();
   const canOpen = canViewAdminPanel(userData); // admin + collector
   const canAdd = canAddSchedule(userData); // admin + collector
   const canEdit = canEditSchedule(userData); // admin only
@@ -165,6 +169,8 @@ export default function ManageSchedules({ navigation }) {
       setEditingSchedule(null);
       setNewSchedule({ ...resetSchedule });
       fetchSchedules();
+      // Re-arm this device against the changed schedule set.
+      syncCollectionReminders(user, userData);
     } catch (error) {
       Alert.alert("Error", "Failed to save schedule");
     }
@@ -177,8 +183,14 @@ export default function ManageSchedules({ navigation }) {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          // Capture the sitio before deleting so we can drop its alarms.
+          const target = schedules.find((s) => s.id === id);
           await db.collection("schedules").doc(id).delete();
+          if (target) {
+            await cancelRemindersForSchedule(id, target.sitio || "");
+          }
           fetchSchedules();
+          syncCollectionReminders(user, userData);
         },
       },
     ]);
