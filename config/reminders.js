@@ -218,6 +218,9 @@ export async function setupNotificationChannel() {
 let permissionRequest = null;
 
 export function requestNotificationPermission() {
+  // No notification permission model on web.
+  if (Platform.OS === "web") return Promise.resolve(false);
+
   if (permissionRequest) return permissionRequest;
 
   permissionRequest = (async () => {
@@ -248,6 +251,7 @@ export function requestNotificationPermission() {
 // Drops every locally-armed alarm. Used at the start of each sync
 // (idempotency) and on logout / when the server owns delivery.
 export async function cancelAllLocalReminders() {
+  if (Platform.OS === "web") return;
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (error) {
@@ -257,6 +261,7 @@ export async function cancelAllLocalReminders() {
 
 // Drops only one schedule's alarms (on delete).
 export async function cancelRemindersForSchedule(scheduleId, sitio) {
+  if (Platform.OS === "web") return;
   for (const offset of REMINDER_OFFSETS_MIN) {
     try {
       await Notifications.cancelScheduledNotificationAsync(
@@ -300,6 +305,14 @@ export function syncCollectionReminders(user, userData) {
 }
 
 async function syncCollectionRemindersNow(user, userData) {
+  // Local alarms are a native-only feature. There is nothing to arm or
+  // cancel on web, and the underlying calls would only throw — worse,
+  // reporting "armed 0" would imply delivery was configured when in fact
+  // no notification path exists on this platform at all.
+  if (Platform.OS === "web") {
+    return { mode: DELIVERY_MODES.DEVICE, scheduled: 0, reason: "web" };
+  }
+
   const configured = resolveDeliveryMode();
 
   // Always clear first: no stale or duplicate alarms survive a sync.
@@ -407,6 +420,7 @@ async function syncCollectionRemindersNow(user, userData) {
  * the alarm survives the app being killed.
  * ============================================================ */
 export async function scheduleTestReminder(seconds = 60) {
+  if (Platform.OS === "web") return false;
   const granted = await requestNotificationPermission();
   if (!granted) return false;
 

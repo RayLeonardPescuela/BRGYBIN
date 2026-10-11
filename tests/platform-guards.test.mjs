@@ -32,11 +32,26 @@ t("hook IS used somewhere (not deleted)", app.includes("useLastNotificationRespo
 t("tap-through is behind a web guard", app.includes('Platform.OS !== "web"'));
 t("tap-through component is rendered", /<NotificationTapThrough\b/.test(app));
 
-// ---- notification bootstrap must not touch native APIs on web ----
-t("initNotifications guards web",
-  /if \(Platform\.OS === "web"\) return false;/.test(reminders));
-t("registerPushToken guards web",
-  /if \(Platform\.OS === "web"\) return null;/.test(reminders));
+// ---- every notification entry point must bail on web ----
+// Matching on a window from the function's start rather than the whole
+// file, so a guard in one function cannot accidentally satisfy another.
+const fnWindow = (src, name, len = 900) => {
+  const i = src.indexOf(`function ${name}`);
+  return i === -1 ? "" : src.slice(i, i + len);
+};
+const guardsWeb = (src, name) => fnWindow(src, name).includes('Platform.OS === "web"');
+
+for (const fn of [
+  "initNotifications",
+  "registerPushToken",
+  "requestNotificationPermission",
+  "cancelAllLocalReminders",
+  "cancelRemindersForSchedule",
+  "scheduleTestReminder",
+  "syncCollectionRemindersNow",
+]) {
+  t(`${fn} guards web`, guardsWeb(reminders, fn));
+}
 
 // ---- Platform must actually be imported where it is used ----
 t("App.js imports Platform", /import\s*{[^}]*\bPlatform\b[^}]*}\s*from\s*"react-native"/.test(app));
