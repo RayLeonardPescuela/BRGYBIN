@@ -97,5 +97,45 @@ const aliased = config.resolver.resolveRequest(metroContext, "xDevicePushTokenAu
 t("alias short-circuits without delegating", delegated === null, String(delegated));
 t("alias resolves to the stub", aliased.filePath === stub);
 
+// ---- rule 2: missing native shims fall back to the library's own stub ----
+const notificationsOrigin = path.join(
+  process.cwd(), "node_modules", "expo-notifications", "build", "topicSubscription.js"
+);
+
+const redirected = config.resolver.resolveRequest(
+  { originModulePath: notificationsOrigin, ...metroContext },
+  "./TopicSubscriptionModule",
+  "android"
+);
+t("TopicSubscriptionModule redirects on android",
+  redirected.filePath.endsWith(path.join("expo-notifications", "build", "TopicSubscriptionModule.js")),
+  redirected.filePath);
+
+// The target must be the SAFE variant: a plain object, no native lookup.
+const targetSrc = readFileSync(redirected.filePath, "utf8");
+t("redirect target does not call requireNativeModule",
+  !/requireNativeModule\s*\(/.test(targetSrc));
+t("target exports a resolving stub",
+  /subscribeToTopicAsync/.test(targetSrc));
+
+// Must not leak outside expo-notifications, and must be android-only.
+const foreign = config.resolver.resolveRequest(
+  { originModulePath: path.join(process.cwd(), "screens", "Home.js"), ...metroContext },
+  "./TopicSubscriptionModule",
+  "android"
+);
+t("same-named app module is not redirected",
+  !foreign.filePath.endsWith("TopicSubscriptionModule.js"),
+  foreign.filePath);
+
+const ios = config.resolver.resolveRequest(
+  { originModulePath: notificationsOrigin, ...metroContext },
+  "./TopicSubscriptionModule",
+  "ios"
+);
+t("iOS keeps its native module",
+  !ios.filePath.endsWith(path.join("build", "TopicSubscriptionModule.js")),
+  ios.filePath);
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
