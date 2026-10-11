@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "npm run test:reminders && node tests/rules-structure.test.mjs",
+    "test": "npm run test:reminders && node tests/rules-structure.test.mjs && node tests/platform-guards.test.mjs",
     "test:reminders": "node tests/reminder-parsers.test.mjs && node tests/reminder-due.test.mjs && node tests/reminder-targeting.test.mjs",
     "reminders:dry": "node scripts/send-reminders.mjs --dry-run",
     "reminders:send": "node scripts/send-reminders.mjs"

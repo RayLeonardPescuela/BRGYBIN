@@ -80,6 +80,8 @@ export function getPushToken() {
 export async function registerPushToken(user, userData) {
   pushTokenState = { ok: false, token: null };
   if (!user?.uid) return null;
+  // No push transport on web.
+  if (Platform.OS === "web") return null;
 
   try {
     const projectId =
@@ -430,6 +432,11 @@ export async function scheduleTestReminder(seconds = 60) {
  * BOOTSTRAP — called once from App.js on startup
  * ============================================================ */
 export async function initNotifications() {
+  // Notifications are native-only in this app. On web there is no
+  // permission prompt and no channel support, so asking would throw
+  // rather than merely return false.
+  if (Platform.OS === "web") return false;
+
   configureNotificationHandler();
   await setupNotificationChannel();
   return requestNotificationPermission();

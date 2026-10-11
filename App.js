@@ -74,21 +74,20 @@ function BackButtonHandler() {
   return null;
 }
 
-export default function App() {
-  const [fontsLoaded] = useFonts({
-    RubikBurned: require("./assets/fonts/RubikBurned-Regular.ttf"),
-  });
-
-  const navigationRef = useNavigationContainerRef();
+/**
+ * Tap-through: opening a reminder notification lands on the collection
+ * schedule.
+ *
+ * Kept in its own component ON PURPOSE. `useLastNotificationResponse`
+ * calls `getLastNotificationResponse()` inside a layout effect, and that
+ * native method does not exist on web — it throws UnavailabilityError,
+ * which crashed the whole app on `expo start --web`. A hook cannot be
+ * called conditionally, so instead this component is simply never mounted
+ * on web and the hook never runs there.
+ */
+function NotificationTapThrough({ navigationRef }) {
   const lastNotificationResponse = useLastNotificationResponse();
 
-  // Reminder foundation: display handler + Android channel + permission.
-  // Runs before any notification is ever scheduled.
-  useEffect(() => {
-    initNotifications();
-  }, []);
-
-  // Tap-through: opening a reminder lands on the collection schedule.
   // Retries briefly — a cold start may not have mounted the navigator
   // yet (fonts are still loading), so isReady() can be false at first.
   useEffect(() => {
@@ -110,6 +109,22 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [lastNotificationResponse]);
 
+  return null;
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    RubikBurned: require("./assets/fonts/RubikBurned-Regular.ttf"),
+  });
+
+  const navigationRef = useNavigationContainerRef();
+
+  // Reminder foundation: display handler + Android channel + permission.
+  // Runs before any notification is ever scheduled.
+  useEffect(() => {
+    initNotifications();
+  }, []);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -121,6 +136,10 @@ export default function App() {
   return (
     <UserProvider>
       <BackButtonHandler />
+      {/* Never mounted on web: see NotificationTapThrough. */}
+      {Platform.OS !== "web" && (
+        <NotificationTapThrough navigationRef={navigationRef} />
+      )}
       <NavigationContainer ref={navigationRef}>
         <StatusBar hidden />
         <Stack.Navigator
