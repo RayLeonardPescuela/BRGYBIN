@@ -14,14 +14,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { auth, db } from "../config/firebase";
 import shared, { COLORS } from "../styles";
 
 export default function SignUp() {
   const navigation = useNavigation();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const route = useRoute();
+  // Arriving from Google sign-in: Login passes { google: { name, email } }.
+  // The normal flow (Getstarted) passes { google: null } so this never leaks
+  // from a previous Google attempt into a fresh email sign-up.
+  const googleUser = route.params?.google || null;
+  const isGoogleMode = !!googleUser;
+  // Pre-fill + lock the fields Google already knows, when it supplied a value.
+  const nameLocked = isGoogleMode && !!googleUser.name;
+  const [name, setName] = useState(googleUser?.name || "");
+  const [email, setEmail] = useState(googleUser?.email || "");
   const [selectedSitio, setSelectedSitio] = useState(null);
   const [sitios, setSitios] = useState([]);
   const [sitiosLoading, setSitiosLoading] = useState(true);
@@ -51,6 +59,11 @@ export default function SignUp() {
 
   const handleSignUp = async () => {
     setError("");
+
+    // Google mode: the Auth account already exists — different path.
+    if (isGoogleMode) {
+      return handleGoogleRegister();
+    }
 
     if (!name || !email || !selectedSitio || !password || !confirmPassword) {
       setError("Please fill in all fields");
@@ -91,10 +104,23 @@ export default function SignUp() {
         sitio: selectedSitio,
         points: 0,
         role: "user",
+        authProvider: "password",
         createdAt: new Date(),
       });
 
-      navigation.navigate("Home");
+      // Email verification (Firebase link). If sending fails, the account
+      // still exists — VerifyEmail has a Resend button to retry.
+      try {
+        await user.sendEmailVerification();
+      } catch (verifyErr) {
+        console.log(
+          "sendEmailVerification error:",
+          verifyErr.code,
+          verifyErr.message
+        );
+      }
+
+      navigation.navigate("VerifyEmail", { email });
     } catch (error) {
       console.log("Sign up error:", error.code, error.message);
       let message = "Sign up failed. Please try again.";
@@ -112,6 +138,71 @@ export default function SignUp() {
       }
 
       setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google mode: the Auth account already exists (created by the Google
+  // sign-in), so we must NOT call createUserWithEmailAndPassword. We only
+  // write the profile doc and optionally attach a password (option C).
+  const handleGoogleRegister = async () => {
+    if (!name || !email || !selectedSitio) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    if (name.length < 2) {
+      setError("Name must be at least 2 characters");
+      return;
+    }
+
+    // Password is optional here — but if they start it, require it to be valid.
+    const wantsPassword = !!password || !!confirmPassword;
+    if (wantsPassword) {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match");
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        setError("Session expired. Please sign in with Google again.");
+        return;
+      }
+
+      // Optional password: attach it so they can log in either way later.
+      // Non-fatal if it fails (e.g. recent-login required) — Google still works.
+      if (wantsPassword) {
+        try {
+          await user.updatePassword(password);
+        } catch (pwErr) {
+          console.log("updatePassword error:", pwErr.code, pwErr.message);
+        }
+      }
+
+      await db.collection("users").doc(user.uid).set({
+        name: name,
+        email: email,
+        sitio: selectedSitio,
+        points: 0,
+        role: "user",
+        authProvider: "google",
+        createdAt: new Date(),
+      });
+
+      // Google emails are pre-verified — skip the verify step.
+      navigation.navigate("Home");
+    } catch (error) {
+      console.log("Google registration error:", error.code, error.message);
+      setError("Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -160,6 +251,7 @@ export default function SignUp() {
               placeholder="Full Name"
               placeholderTextColor="#556B2F"
               autoCapitalize="words"
+              editable={!nameLocked}
               value={name}
               onChangeText={setName}
             />
@@ -178,6 +270,7 @@ export default function SignUp() {
               placeholderTextColor="#556B2F"
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isGoogleMode}
               value={email}
               onChangeText={setEmail}
             />
@@ -218,7 +311,7 @@ export default function SignUp() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder={isGoogleMode ? "Password (optional)" : "Password"}
               placeholderTextColor="#556B2F"
               secureTextEntry={!showPassword}
               value={password}
@@ -242,7 +335,9 @@ export default function SignUp() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Confirm Password"
+              placeholder={
+                isGoogleMode ? "Confirm Password (optional)" : "Confirm Password"
+              }
               placeholderTextColor="#556B2F"
               secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
@@ -278,15 +373,17 @@ export default function SignUp() {
           )}
         </TouchableOpacity>
 
-        {/* Login Link */}
-        <TouchableOpacity
-          style={styles.loginContainer}
-          onPress={() => navigation.navigate("Login")}
-        >
-          <Text style={styles.loginText}>
-            Already have an account? <Text style={styles.loginBold}>Log in</Text>
-          </Text>
-        </TouchableOpacity>
+        {/* Login Link (hidden in Google mode — they're already signed in) */}
+        {!isGoogleMode && (
+          <TouchableOpacity
+            style={styles.loginContainer}
+            onPress={() => navigation.navigate("Login")}
+          >
+            <Text style={styles.loginText}>
+              Already have an account? <Text style={styles.loginBold}>Log in</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Sitio Picker Modal */}

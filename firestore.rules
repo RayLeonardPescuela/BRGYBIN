@@ -79,6 +79,15 @@ service cloud.firestore {
     }
 
     // ---------- config (sitios list) ----------
+    // The sign-up form loads the sitio list BEFORE anyone has signed in —
+    // sitio is required to create an account — so this one doc must be
+    // readable while anonymous. Neighborhood names are not sensitive.
+    // Every other config doc and every write is unchanged (writes stay
+    // admin-only; collectorQr etc. remain signed-in-only to read).
+    match /config/sitios {
+      allow read: if true;
+    }
+
     match /config/{docId} {
       allow read: if isSignedIn();
       allow create, update: if isAdmin();

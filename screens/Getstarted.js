@@ -26,7 +26,7 @@ export default function Getstarted({ navigation }) {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => navigation.navigate("SignUp")}
+          onPress={() => navigation.navigate("SignUp", { google: null })}
         >
           <Text style={styles.buttonText}>Create Account</Text>
         </TouchableOpacity>
@@ -39,24 +39,6 @@ export default function Getstarted({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Social Media Sign-in Section */}
-<View style={styles.socialSection}>
-  <View style={styles.socialIconsRow}>
-    <TouchableOpacity style={styles.socialCircle}>
-      <FontAwesome5 name="twitter" size={28} color="#1DA1F2" />
-    </TouchableOpacity>
-    
-    <TouchableOpacity style={styles.socialCircle}>
-      <FontAwesome5 name="facebook" size={28} color="#4267B2" />
-    </TouchableOpacity>
-
-    <TouchableOpacity style={styles.socialCircle}>
-      <FontAwesome5 name="apple" size={28} color="#000000" />
-    </TouchableOpacity>
-  </View>
-  
-  <Text style={styles.footerText}>Sign in with another account</Text>
-</View>
     </SafeAreaView>
   );
 }

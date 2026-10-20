@@ -9,12 +9,14 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { auth, db } from "../config/firebase";
 import { canViewAdminPanel } from "../config/roles";
+import { signInWithGoogle } from "../config/google";
 
 export default function Login() {
   const navigation = useNavigation();
@@ -23,6 +25,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -104,6 +107,42 @@ export default function Login() {
     }
   };
 
+  // Google sign-in: authenticate, then decide — returning user routes in,
+  // brand-new Google user goes to the create-account page to finish setup.
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      const userDoc = await db.collection("users").doc(user.uid).get();
+
+      if (userDoc.exists) {
+        // Returning Google user — route by role like a normal login.
+        const userData = userDoc.data();
+        navigation.navigate(canViewAdminPanel(userData) ? "AdminHome" : "Home");
+      } else {
+        // First time with Google — finish creating their profile.
+        navigation.navigate("SignUp", {
+          google: { name: user.displayName || "", email: user.email || "" },
+        });
+      }
+    } catch (err) {
+      console.log("Google sign-in error:", err);
+      const code = err?.code || "";
+      if (
+        code === "SIGN_IN_CANCELLED" ||
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        // User backed out — not an error.
+      } else {
+        setError("Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -123,7 +162,11 @@ export default function Login() {
         <Text style={styles.headerTitle}>Log in</Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Illustration */}
         <View style={styles.illustrationContainer}>
           <Image
@@ -203,6 +246,29 @@ export default function Login() {
           <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
 
+        {/* Or divider */}
+        <View style={styles.orRow}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>or</Text>
+          <View style={styles.orLine} />
+        </View>
+
+        {/* Google Sign In */}
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+        >
+          {googleLoading ? (
+            <ActivityIndicator color="#4285F4" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="google" size={22} color="#4285F4" />
+              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
         {/* Sign Up Link */}
         <TouchableOpacity
           style={styles.signupContainer}
@@ -212,7 +278,7 @@ export default function Login() {
             Don't have an account? <Text style={styles.signupBold}>Sign up</Text>
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -238,9 +304,10 @@ const styles = StyleSheet.create({
     color: "#3E2723",
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     paddingHorizontal: 30,
+    paddingBottom: 30,
   },
   illustrationContainer: {
     width: "100%",
@@ -324,5 +391,43 @@ const styles = StyleSheet.create({
   signupBold: {
     fontWeight: "bold",
     textDecorationLine: "underline",
+  },
+  orRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    marginTop: 20,
+    gap: 10,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#3E2723",
+    opacity: 0.3,
+  },
+  orText: {
+    fontSize: 14,
+    fontFamily: "sans-serif",
+    color: "#3E2723",
+  },
+  googleButton: {
+    flexDirection: "row",
+    width: "100%",
+    paddingVertical: 15,
+    borderRadius: 35,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDDDDD",
+    elevation: 2,
+    marginTop: 15,
+  },
+  googleButtonText: {
+    fontSize: 18,
+    fontFamily: "sans-serif",
+    fontWeight: "bold",
+    color: "#3E2723",
   },
 });

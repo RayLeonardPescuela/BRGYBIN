@@ -22,6 +22,7 @@ import SegregationGuide from "./screens/SegregationGuide";
 import CleaningSchedule from "./screens/CleaningSchedule";
 import RewardSystem from "./screens/RewardSystem";
 import SignUp from "./screens/SignUp";
+import VerifyEmail from "./screens/VerifyEmail";
 import AdminHome from "./screens/AdminHome";
 import ManageUsers from "./screens/ManageUsers";
 import ManageSchedules from "./screens/ManageSchedules";
@@ -161,6 +162,7 @@ export default function App() {
           <Stack.Screen name="CleaningSchedule" component={CleaningSchedule} />
           <Stack.Screen name="RewardSystem" component={RewardSystem} />
           <Stack.Screen name="SignUp" component={SignUp} />
+          <Stack.Screen name="VerifyEmail" component={VerifyEmail} />
           <Stack.Screen name="AdminHome" component={AdminHome} />
           <Stack.Screen name="ManageUsers" component={ManageUsers} />
           <Stack.Screen name="ManageSchedules" component={ManageSchedules} />
