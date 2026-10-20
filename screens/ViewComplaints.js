@@ -28,10 +28,14 @@ export default function ViewComplaints({ navigation }) {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const complaintsSnapshot = await db.collection("complaints").orderBy("createdAt", "desc").get();
-      setComplaints(complaintsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      // Two independent lists — fetched together so the screen waits on
+      // one round trip instead of paying for two back to back.
+      const [complaintsSnapshot, requestsSnapshot] = await Promise.all([
+        db.collection("complaints").orderBy("createdAt", "desc").get(),
+        db.collection("pickupRequests").orderBy("createdAt", "desc").get(),
+      ]);
 
-      const requestsSnapshot = await db.collection("pickupRequests").orderBy("createdAt", "desc").get();
+      setComplaints(complaintsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setRequests(requestsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
       console.log("Error fetching data:", error);

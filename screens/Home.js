@@ -15,6 +15,7 @@ import NotificationBadge from "../components/NotificationBadge";
 import { useUser } from "../config/UserContext";
 import { useUnreadCount } from "../config/unreadNotifications";
 import { db } from "../config/firebase";
+import { countDocs } from "../config/counts";
 import shared, { COLORS } from "../styles";
 import { canViewAdminPanel, roleLabel } from "../config/roles";
 // Shared with the reminder scheduler so the dashboard's "next pickup"
@@ -64,31 +65,49 @@ export default function Home({ navigation }) {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch announcements from Firestore
-      const announcementsSnapshot = await db
-        .collection("announcements")
-        .orderBy("createdAt", "desc")
-        .limit(10)
-        .get();
+      const userSitio = userData?.sitio;
 
+      // Four independent reads, fired together instead of back to back:
+      // the dashboard used to pay for four separate round trips before
+      // anything appeared on screen. The "no sitio" case simply skips
+      // the schedules query, because it has nothing to look up.
+      const [announcementsSnapshot, schedulesSnapshot, redemptionCount, recentSnapshot] =
+        await Promise.all([
+          db
+            .collection("announcements")
+            .orderBy("createdAt", "desc")
+            .limit(10)
+            .get(),
+          userSitio
+            ? db
+                .collection("schedules")
+                .where("type", "==", "collection")
+                .where("sitio", "==", userSitio)
+                .where("status", "==", "scheduled")
+                .get()
+            : null,
+          // Counted server-side — see config/counts.js. Downloading the
+          // whole redemptions collection just to read `.size` off it
+          // grows more expensive every time someone redeems a reward.
+          countDocs("redemptions"),
+          db
+            .collection("redemptions")
+            .orderBy("createdAt", "desc")
+            .limit(3)
+            .get(),
+        ]);
+
+      // Fetch announcements from Firestore
       if (!announcementsSnapshot.empty) {
         const fetched = announcementsSnapshot.docs.map((doc) => doc.data().message);
         setAnnouncements(fetched);
       }
 
-      // Fetch next pickup: the soonest upcoming collection for the user's
+      // Next pickup: the soonest upcoming collection for the user's
       // sitio (today or later). "--" if the user has no sitio set.
-      const userSitio = userData?.sitio;
       if (!userSitio) {
         setNextPickup("--");
       } else {
-        const schedulesSnapshot = await db
-          .collection("schedules")
-          .where("type", "==", "collection")
-          .where("sitio", "==", userSitio)
-          .where("status", "==", "scheduled")
-          .get();
-
         const today = startOfToday();
         const upcoming = schedulesSnapshot.docs
           .map((doc) => ({ ...doc.data() }))
@@ -104,22 +123,16 @@ export default function Home({ navigation }) {
         );
       }
 
-      // Fetch total scans (redemptions)
-      const redemptionsSnapshot = await db.collection("redemptions").get();
-      setTotalScans(redemptionsSnapshot.size);
+      // Total scans (redemptions)
+      setTotalScans(redemptionCount);
 
-      // Fetch recent activity (redemptions)
-      const recentSnapshot = await db
-        .collection("redemptions")
-        .orderBy("createdAt", "desc")
-        .limit(3)
-        .get();
-      
-      const activities = recentSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setRecentActivity(activities);
+      // Recent activity (redemptions)
+      setRecentActivity(
+        recentSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+      );
     } catch (error) {
       console.log("Error fetching dashboard data:", error);
     }

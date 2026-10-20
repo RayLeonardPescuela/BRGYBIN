@@ -11,6 +11,7 @@ import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useUser } from "../config/UserContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { db } from "../config/firebase";
+import { countDocs } from "../config/counts";
 import shared, { COLORS } from "../styles";
 import { canViewAdminPanel, roleLabel } from "../config/roles";
 
@@ -33,20 +34,25 @@ export default function AdminHome({ navigation }) {
 
   const fetchStats = async () => {
     try {
-      const usersSnapshot = await db.collection("users").get();
-      const complaintsSnapshot = await db.collection("complaints").get();
-      const requestsSnapshot = await db.collection("pickupRequests").where("status", "==", "pending").get();
-
-      let pendingCount = 0;
-      complaintsSnapshot.docs.forEach((doc) => {
-        if (doc.data().status === "pending") pendingCount++;
-      });
+      // Four numbers, asked for at once instead of one after another,
+      // and as COUNTS rather than downloads (see config/counts.js).
+      //
+      // The users stat used to pull every account document — base64
+      // avatars included — over the network just to read `.size` off
+      // the result.
+      const [totalUsers, totalComplaints, pendingComplaints, pendingRequests] =
+        await Promise.all([
+          countDocs("users"),
+          countDocs("complaints"),
+          countDocs("complaints", [["status", "==", "pending"]]),
+          countDocs("pickupRequests", [["status", "==", "pending"]]),
+        ]);
 
       setStats({
-        totalUsers: usersSnapshot.size,
-        totalComplaints: complaintsSnapshot.size,
-        pendingComplaints: pendingCount,
-        pendingRequests: requestsSnapshot.size,
+        totalUsers,
+        totalComplaints,
+        pendingComplaints,
+        pendingRequests,
       });
     } catch (error) {
       console.log("Error fetching stats:", error);

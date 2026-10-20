@@ -24,17 +24,20 @@ export default function PointHistory({ navigation }) {
 
   const fetchHistory = async () => {
     try {
-      const earnedSnapshot = await db
-        .collection("pointHistory")
-        .where("userId", "==", user.uid)
-        .orderBy("createdAt", "desc")
-        .get();
-
-      const redeemedSnapshot = await db
-        .collection("redemptions")
-        .where("userId", "==", user.uid)
-        .orderBy("createdAt", "desc")
-        .get();
+      // Two independent halves of the history — earned vs spent. Run
+      // them together: one round trip instead of two.
+      const [earnedSnapshot, redeemedSnapshot] = await Promise.all([
+        db
+          .collection("pointHistory")
+          .where("userId", "==", user.uid)
+          .orderBy("createdAt", "desc")
+          .get(),
+        db
+          .collection("redemptions")
+          .where("userId", "==", user.uid)
+          .orderBy("createdAt", "desc")
+          .get(),
+      ]);
 
       const earned = earnedSnapshot.docs.map((doc) => ({
         id: doc.id,
