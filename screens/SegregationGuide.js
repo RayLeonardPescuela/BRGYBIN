@@ -41,8 +41,6 @@ export default function SegregationGuide({ navigation }) {
         <Text style={styles.headerTitle}>Segregation Guide</Text>
       </View>
 
-      <View style={styles.divider} />
-
       {/* Horizontal Scrollable Circle Buttons */}
       <View style={styles.scrollWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -81,7 +79,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.dividerBlue,
   scrollWrapper: { height: 160 },
   scrollContent: { paddingHorizontal: 15, alignItems: "center" },
   itemWrapper: { alignItems: "center", marginHorizontal: 10 },

@@ -206,7 +206,6 @@ export default function ViewComplaints({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Complaints & Requests</Text>
       </View>
-      <View style={styles.divider} />
 
       {/* Tabs */}
       <View style={styles.tabRow}>
@@ -278,8 +277,7 @@ export default function ViewComplaints({ navigation }) {
 const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
-  headerTitle: [shared.headerTitle, { fontSize: 24, marginLeft: 10 }],
-  divider: shared.divider,
+  headerTitle: [shared.headerTitle, { marginLeft: 10 }],
   tabRow: shared.tabRow,
   tab: shared.tab,
   activeTab: shared.tabActive,

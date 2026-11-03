@@ -55,11 +55,15 @@ const shared = StyleSheet.create({
   },
 
   /* ---------- Headers ---------- */
+  // LOCKED page-title position: every back-chevron screen must land its
+  // title on the same line (60px = 40 wrapper + the old 20, consolidated
+  // here so screens can't drift apart again). Do not add per-screen
+  // paddingTop on top of this — adjust here instead.
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
   },
 
   headerWithTitle: {
@@ -108,21 +112,6 @@ const shared = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     fontFamily: FONT,
-  },
-
-  /* ---------- Dividers ---------- */
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.black,
-    marginHorizontal: 20,
-    marginVertical: 10,
-  },
-
-  dividerBlue: {
-    height: 2,
-    backgroundColor: COLORS.accent,
-    marginHorizontal: 20,
-    marginVertical: 10,
   },
 
   /* ---------- Badges ---------- */

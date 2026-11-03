@@ -298,7 +298,6 @@ export default function ManageUsers({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Users</Text>
         </View>
-        <View style={styles.divider} />
         <View style={styles.center}>
           <MaterialCommunityIcons name="lock" size={60} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>Main Admin access required</Text>
@@ -316,7 +315,6 @@ export default function ManageUsers({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Users</Text>
       </View>
-      <View style={styles.divider} />
 
       {/* Tabs */}
       <View style={styles.tabRow}>
@@ -527,7 +525,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   center: shared.center,
   loadingText: shared.loadingText,
   emptyState: shared.emptyState,

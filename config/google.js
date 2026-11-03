@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, TurboModuleRegistry } from "react-native";
 import firebase from "firebase/compat/app";
 import { auth } from "./firebase";
 
@@ -15,11 +15,53 @@ const WEB_CLIENT_ID =
 // The browser path uses Firebase's signInWithPopup instead.
 const isNative = Platform.OS !== "web";
 
+// `GoogleSignin` is NATIVE. Requiring the JS library immediately runs
+// `TurboModuleRegistry.getEnforcing('RNGoogleSignin')`, which THROWS when
+// the module is not compiled into the binary that is currently running.
+//
+// That is exactly what happens in Expo Go: this library needs a dev or
+// production build (`npx expo run:android` / EAS). Because Login.js imports
+// this file from App.js, the throw happened while the bundle was still
+// booting, so the app never reached a single screen — red screen,
+// "Invariant Violation: TurboModuleRegistry.getEnforcing(...):
+// 'RNGoogleSignin' could not be found."
+//
+// `get()` is the non-throwing twin of `getEnforcing()`: null when the module
+// isn't linked. Ask it FIRST and only require the library when the native
+// side is really there, so the app boots everywhere and Google sign-in
+// degrades to a clear message instead of a crash.
+const hasNativeModule =
+  isNative && TurboModuleRegistry.get("RNGoogleSignin") != null;
+
 let GoogleSignin = null;
-if (isNative) {
-  // eslint-disable-next-line global-require
-  GoogleSignin = require("@react-native-google-signin/google-signin").GoogleSignin;
-  GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+// Set only when native Google sign-in genuinely cannot work (Expo Go, or a
+// build where the module is missing). Stays null on web, where the popup
+// path is used instead.
+let unavailableReason = null;
+
+if (hasNativeModule) {
+  try {
+    // eslint-disable-next-line global-require
+    GoogleSignin = require("@react-native-google-signin/google-signin").GoogleSignin;
+    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+  } catch (err) {
+    // Defensive: the module is linked but still failed to initialise.
+    GoogleSignin = null;
+    unavailableReason = "Google Sign-In failed to initialise on this device.";
+    console.warn("Google Sign-In unavailable:", err?.message);
+  }
+} else if (isNative) {
+  unavailableReason =
+    "Google Sign-In isn't available in Expo Go — it needs a build of the app. " +
+    "Log in with your email and password instead.";
+}
+
+/**
+ * Why native Google sign-in cannot be used right now, or null when it can
+ * (web always can — it uses the Firebase popup).
+ */
+export function googleSignInUnavailableReason() {
+  return unavailableReason;
 }
 
 /**
@@ -37,6 +79,15 @@ export async function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     const credential = await auth.signInWithPopup(provider);
     return credential.user;
+  }
+
+  if (!GoogleSignin) {
+    const error = new Error(
+      unavailableReason ||
+        "Google Sign-In isn't available in this build of the app."
+    );
+    error.code = "GOOGLE_SIGNIN_UNAVAILABLE";
+    throw error;
   }
 
   await GoogleSignin.hasPlayServices();

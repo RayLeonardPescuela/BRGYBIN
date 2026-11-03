@@ -284,7 +284,6 @@ export default function CollectionSchedule({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Collection Schedule</Text>
       </View>
-      <View style={styles.divider} />
 
       {loading ? (
         <View style={styles.center}>
@@ -538,7 +537,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   center: shared.center,
   emptyText: shared.emptyText,
   emptySubtext: shared.emptySubtext,

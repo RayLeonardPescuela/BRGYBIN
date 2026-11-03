@@ -134,7 +134,6 @@ export default function PointHistory({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Point History</Text>
       </View>
-      <View style={styles.divider} />
 
       {/* Summary */}
       <View style={styles.summaryRow}>
@@ -177,7 +176,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   summaryRow: shared.summaryRow,
   summaryCard: shared.summaryCard,
   summaryValue: shared.summaryValue,

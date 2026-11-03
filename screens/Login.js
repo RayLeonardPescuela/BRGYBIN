@@ -135,6 +135,10 @@ export default function Login() {
         code === "auth/cancelled-popup-request"
       ) {
         // User backed out — not an error.
+      } else if (code === "GOOGLE_SIGNIN_UNAVAILABLE") {
+        // Expo Go / build without the native module — explain instead of
+        // showing the generic "failed, try again".
+        setError(err.message);
       } else {
         setError("Google sign-in failed. Please try again.");
       }

@@ -151,8 +151,16 @@ export const startOfToday = () => {
  * Handles Firestore Dates, "YYYY-MM-DD", "June 26", "Jun 26, 2026" and
  * anything else Date accepts. Schedules were originally free-text, so
  * all of these exist in the wild.
+ *
+ * options.rollForwardYear (default true) only matters for yearless
+ * dates: "July 1" with no year normally rolls FORWARD to next year's
+ * occurrence if this year's has passed — correct for reminders arming
+ * for the next repeat, but wrong for retention filters that must decide
+ * whether an entry is OLD. Pass { rollForwardYear: false } there so
+ * "July 1" means this year's (already past) date instead.
  */
-export function parseScheduleDate(value) {
+export function parseScheduleDate(value, options = {}) {
+  const { rollForwardYear = true } = options;
   if (!value) return null;
 
   if (typeof value.toDate === "function") return value.toDate();
@@ -174,7 +182,7 @@ export function parseScheduleDate(value) {
       const day = +named[2];
       let year = named[3] ? +named[3] : new Date().getFullYear();
       // No year given: if that date already passed, roll to next year's occurrence
-      if (!named[3] && new Date(year, month, day) < startOfToday()) year += 1;
+      if (!named[3] && rollForwardYear && new Date(year, month, day) < startOfToday()) year += 1;
       return new Date(year, month, day);
     }
   }
@@ -187,9 +195,10 @@ export function parseScheduleDate(value) {
 /**
  * "2026-10-14" + "8:00 AM" -> Date(2026, 9, 14, 8, 0)
  * Returns null when either part is unusable — callers must skip it.
+ * options is forwarded to parseScheduleDate (see rollForwardYear).
  */
-export function parseScheduleDateTime(dateValue, timeValue) {
-  const day = parseScheduleDate(dateValue);
+export function parseScheduleDateTime(dateValue, timeValue, options) {
+  const day = parseScheduleDate(dateValue, options);
   if (!day) return null;
 
   // Strict parse: an empty or unrecognizable time is unusable, NOT 8am.

@@ -19,7 +19,6 @@ export default function RewardSystem({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Reward System</Text>
         </View>
-        <View style={styles.divider} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -88,10 +87,9 @@ export default function RewardSystem({ navigation }) {
 
 const styles = StyleSheet.create({
   container: shared.container,
-  headerContainer: { paddingTop: 40, backgroundColor: COLORS.background, zIndex: 10 },
+  headerContainer: { backgroundColor: COLORS.background, zIndex: 10 },
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   scrollContent: shared.scrollContent,
   pointsCard: { backgroundColor: COLORS.primaryDarker, margin: 20, borderRadius: 25, padding: 30, alignItems: "center", elevation: 5 },
   pointsLabel: { color: COLORS.white, fontSize: 18, fontFamily: "sans-serif" },

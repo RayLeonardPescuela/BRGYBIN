@@ -140,7 +140,6 @@ export default function RedeemRewards({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Redeem Rewards</Text>
       </View>
-      <View style={styles.divider} />
 
       {/* Points Balance */}
       <View style={styles.pointsBanner}>
@@ -175,7 +174,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   pointsBanner: shared.pointsBanner,
   pointsText: shared.pointsBannerText,
   center: shared.center,

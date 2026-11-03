@@ -48,7 +48,9 @@ const styles = StyleSheet.create({
   illustrationContainer: { width: "100%", alignItems: "center", marginTop: 20 },
   illustration: { width: "90%", height: 280 },
   welcomeTitle: { fontSize: 48, fontWeight: "900", color: COLORS.textDark, fontFamily: "sans-serif", textShadowColor: 'rgba(255, 255, 255, 0.75)', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 1 },
-  buttonContainer: { width: "100%", alignItems: "center", gap: 15 },
+  // marginBottom lifts the button pair off the bottom edge (the container
+  // uses space-between, so any extra space lands in the gaps above instead)
+  buttonContainer: { width: "100%", alignItems: "center", gap: 15, marginBottom: 40 },
   actionButton: [shared.primaryButton, { width: "80%", borderRadius: 35 }],
   buttonText: [shared.primaryButtonText, { fontSize: 24 }],
   socialSection: { alignItems: "center", width: "100%" },

@@ -244,7 +244,6 @@ export default function QRGenerator({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>QR Generator</Text>
         </View>
-        <View style={styles.divider} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
           <MaterialCommunityIcons name="lock" size={60} color="#999" />
           <Text style={{ fontSize: 16, marginTop: 10, color: "#666", fontFamily: "sans-serif" }}>
@@ -267,7 +266,6 @@ export default function QRGenerator({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>QR Generator</Text>
       </View>
-      <View style={styles.divider} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {!generated ? (
@@ -423,7 +421,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
   inputSection: { marginTop: 20 },
   label: { fontSize: 16, fontFamily: "sans-serif", fontWeight: "600", marginBottom: 8, color: COLORS.textPrimary },

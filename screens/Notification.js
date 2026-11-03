@@ -162,8 +162,6 @@ export default function Notification({ navigation }) {
         </View>
       </View>
 
-      <View style={styles.divider} />
-
       <View style={styles.subHeader}>
         <Text style={styles.subHeaderText}>Recent</Text>
         {unreadCount > 0 && (
@@ -230,7 +228,6 @@ const styles = StyleSheet.create({
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10, flex: 1 }],
   bellContainer: { position: "relative" },
-  divider: { height: 1, backgroundColor: COLORS.grayLine },
   subHeader: { flexDirection: "row", justifyContent: "space-between", padding: 15 },
   subHeaderText: { fontSize: 18, color: COLORS.brownDark, fontFamily: "sans-serif" },
   scrollArea: { paddingHorizontal: 15, paddingBottom: 100 },

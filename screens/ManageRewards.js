@@ -119,7 +119,6 @@ export default function ManageRewards({ navigation }) {
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.divider} />
 
       {/* QR Generator Button — staff only (collectors generate fixed 1/day QRs) */}
       {canViewAdminPanel(userData) && (
@@ -222,7 +221,6 @@ const styles = StyleSheet.create({
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10, flex: 1 }],
   addBtn: { backgroundColor: COLORS.primary, width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
-  divider: shared.divider,
   qrButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primaryDarker, marginHorizontal: 20, padding: 15, borderRadius: 15, marginBottom: 20, gap: 12 },
   qrButtonText: { flex: 1 },
   qrButtonTitle: { color: COLORS.white, fontSize: 18, fontWeight: "bold", fontFamily: "sans-serif" },

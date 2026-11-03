@@ -107,7 +107,6 @@ export default function VerifyEmail() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Verify Email</Text>
       </View>
-      <View style={styles.divider} />
 
       <View style={styles.content}>
         <MaterialCommunityIcons
@@ -177,7 +176,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   content: {
     flex: 1,
     alignItems: "center",

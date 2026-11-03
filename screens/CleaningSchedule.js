@@ -20,6 +20,9 @@ import { useUser } from "../config/UserContext";
 import { canEditSchedule, canDelete } from "../config/roles";
 import shared, { COLORS } from "../styles";
 import TimePickerField from "../components/TimePickerField";
+// Same date+time parser the reminder scheduler uses, so "8:00 AM",
+// "June 26", Firestore Dates etc. are interpreted identically here.
+import { parseScheduleDateTime } from "../config/reminders";
 
 const colors = [
   { bgColor: "#3E5C3E", iconColor: "#A8D5BA" },
@@ -28,6 +31,28 @@ const colors = [
   { bgColor: "#4A7C59", iconColor: "#FFB6C1" },
   { bgColor: "#5C7A3E", iconColor: "#98FB98" },
 ];
+
+/**
+ * Hide-only retention: cleaning schedules stop showing 48 hours after
+ * their scheduled date + time. Nothing is ever deleted from Firestore —
+ * the docs stay put, only this list drops them.
+ *
+ * Fail-OPEN on purpose: a schedule whose date/time can't be parsed stays
+ * visible. Hiding data the admin created because we couldn't read it
+ * would be worse than showing it a little long.
+ */
+const RETENTION_MS = 48 * 60 * 60 * 1000;
+
+const isExpired = (schedule) => {
+  // rollForwardYear: false — a yearless date like "July 1" would
+  // otherwise roll forward to NEXT year (that's what reminders need)
+  // and never look old. For retention it must mean this year's date.
+  const startsAt = parseScheduleDateTime(schedule.date, schedule.time, {
+    rollForwardYear: false,
+  });
+  if (!startsAt) return false; // unparseable -> keep visible
+  return Date.now() - startsAt.getTime() > RETENTION_MS;
+};
 
 export default function CleaningSchedule({ navigation }) {
   const { userData } = useUser();
@@ -57,11 +82,15 @@ export default function CleaningSchedule({ navigation }) {
         .collection("schedules")
         .where("type", "==", "cleaning")
         .get();
-      const scheduleList = snapshot.docs.map((doc, index) => ({
-        id: doc.id,
-        ...doc.data(),
-        colorIndex: index % colors.length,
-      }));
+      const scheduleList = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((schedule) => !isExpired(schedule))
+        // Colours are assigned AFTER the filter so hidden entries don't
+        // leave gaps in the left/right colour rotation.
+        .map((schedule, index) => ({
+          ...schedule,
+          colorIndex: index % colors.length,
+        }));
       setSchedules(scheduleList);
     } catch (error) {
       console.log("Error fetching schedules:", error);
@@ -131,7 +160,6 @@ export default function CleaningSchedule({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cleaning Schedule</Text>
         </View>
-        <View style={styles.divider} />
       </View>
 
       {loading ? (
@@ -265,10 +293,9 @@ export default function CleaningSchedule({ navigation }) {
 
 const styles = StyleSheet.create({
   container: shared.container,
-  headerContainer: { paddingTop: 40, backgroundColor: COLORS.background, zIndex: 10 },
+  headerContainer: { backgroundColor: COLORS.background, zIndex: 10 },
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   center: shared.center,
   emptyText: shared.emptyText,
   emptySubtext: shared.emptySubtext,

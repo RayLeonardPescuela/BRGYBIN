@@ -127,7 +127,6 @@ export default function DeveloperKiosk({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Developers</Text>
       </View>
-      <View style={styles.divider} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -224,7 +223,6 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
-  divider: shared.divider,
   scrollContent: shared.scrollContentSmall,
   pageTitle: { fontSize: 28, fontFamily: "sans-serif", fontWeight: "bold", textAlign: "center", marginTop: 10, color: COLORS.textDark },
   pageSubTitle: { fontSize: 14, fontFamily: "sans-serif", color: COLORS.textSecondary, textAlign: "center", marginBottom: 25 },

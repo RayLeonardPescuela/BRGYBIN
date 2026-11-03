@@ -268,7 +268,6 @@ export default function ManageSchedules({ navigation }) {
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.divider} />
 
       {!canOpen ? (
         <View style={styles.center}>
@@ -511,7 +510,6 @@ const styles = StyleSheet.create({
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10, flex: 1 }],
   addBtn: { backgroundColor: COLORS.primary, width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
-  divider: shared.divider,
   center: shared.center,
   emptyText: shared.emptyText,
   emptySubtext: shared.emptySubtext,
