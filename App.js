@@ -38,7 +38,7 @@ import PointHistory from "./screens/PointHistory";
 
 const Stack = createNativeStackNavigator();
 
-function BackButtonHandler() {
+function BackButtonHandler({ navigationRef }) {
   const lastPressRef = useRef(0);
 
   useEffect(() => {
@@ -59,18 +59,32 @@ function BackButtonHandler() {
           return true;
         }
 
-        // First press -> ask to press again
+        // First press -> ask to press again. This fires on EVERY screen
+        // because the component renders after </NavigationContainer>
+        // (see the render site), which makes BackHandler dispatch to us
+        // before React Navigation's own listener.
         lastPressRef.current = now;
         ToastAndroid.show(
           "Press back again to log out and exit",
           ToastAndroid.LONG
         );
+
+        // Hand the press back when React Navigation can still pop a
+        // screen -- if we consumed it here, hardware back would stop
+        // navigating anywhere. On the root screen there is nowhere to
+        // go, so consume it: with every listener returning false,
+        // BackHandler's fall-through calls exitApp() and the app would
+        // close on the FIRST press with no logout confirmation.
+        const navigation = navigationRef?.current;
+        if (navigation != null && navigation.canGoBack()) {
+          return false;
+        }
         return true;
       }
     );
 
     return () => subscription.remove();
-  }, []);
+  }, [navigationRef]);
 
   return null;
 }
@@ -136,7 +150,6 @@ export default function App() {
 
   return (
     <UserProvider>
-      <BackButtonHandler />
       {/* Never mounted on web: see NotificationTapThrough. */}
       {Platform.OS !== "web" && (
         <NotificationTapThrough navigationRef={navigationRef} />
@@ -177,6 +190,14 @@ export default function App() {
           <Stack.Screen name="PointHistory" component={PointHistory} />
         </Stack.Navigator>
       </NavigationContainer>
+      {/* Rendered after </NavigationContainer> ON PURPOSE. BackHandler
+          dispatches hardwareBackPress to listeners last-registered-first
+          and React Navigation's useBackButton registers in the
+          container's mount effect, so mounting our handler last is what
+          makes the double-back logout toast fire on the FIRST back press
+          of every screen instead of only once the stack has nothing left
+          to pop. Do not move it back above the container. */}
+      <BackButtonHandler navigationRef={navigationRef} />
     </UserProvider>
   );
 }
