@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import shared, { COLORS } from "../styles";
 import { useUser } from "../config/UserContext";
+import { canManageUsers } from "../config/roles";
 import {
   scheduleTestReminder,
   syncCollectionReminders,
@@ -177,38 +178,42 @@ export default function DeveloperKiosk({ navigation }) {
           ))}
         </View>
 
-        {/* Dev-only reminder diagnostics */}
-        <View style={styles.devToolBox}>
-          <Text style={styles.devToolTitle}>Reminder diagnostics</Text>
-          <Text style={styles.devToolStatus}>
-            {armed} alarm(s) armed · mode: {resolveDeliveryMode()}
-          </Text>
-          <Text style={styles.devToolStatus}>Push: {pushStatus}</Text>
+        {/* Dev-only reminder diagnostics — Main Admin only.
+            Non-admins land on this screen for the team credits, so the
+            controls stay hidden from them (the screen itself stays). */}
+        {canManageUsers(userData) && (
+          <View style={styles.devToolBox}>
+            <Text style={styles.devToolTitle}>Reminder diagnostics</Text>
+            <Text style={styles.devToolStatus}>
+              {armed} alarm(s) armed · mode: {resolveDeliveryMode()}
+            </Text>
+            <Text style={styles.devToolStatus}>Push: {pushStatus}</Text>
 
-          <View style={styles.devToolRow}>
-            <TouchableOpacity style={styles.devToolBtn} onPress={onTest}>
-              <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#FFF" />
-              <Text style={styles.devToolBtnText}>Test 60s</Text>
+            <View style={styles.devToolRow}>
+              <TouchableOpacity style={styles.devToolBtn} onPress={onTest}>
+                <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#FFF" />
+                <Text style={styles.devToolBtnText}>Test 60s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.devToolBtn} onPress={onSync}>
+                <MaterialCommunityIcons name="sync" size={18} color="#FFF" />
+                <Text style={styles.devToolBtnText}>Sync now</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.devToolBtnWide} onPress={onPush}>
+              <MaterialCommunityIcons name="cloud-upload-outline" size={18} color="#FFF" />
+              <Text style={styles.devToolBtnText}>Register push token</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.devToolBtn} onPress={onSync}>
-              <MaterialCommunityIcons name="sync" size={18} color="#FFF" />
-              <Text style={styles.devToolBtnText}>Sync now</Text>
+
+            <TouchableOpacity
+              style={[styles.devToolBtnWide, styles.devToolBtnDanger]}
+              onPress={onCancel}
+            >
+              <MaterialCommunityIcons name="bell-cancel-outline" size={18} color="#FFF" />
+              <Text style={styles.devToolBtnText}>Cancel all alarms</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.devToolBtnWide} onPress={onPush}>
-            <MaterialCommunityIcons name="cloud-upload-outline" size={18} color="#FFF" />
-            <Text style={styles.devToolBtnText}>Register push token</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.devToolBtnWide, styles.devToolBtnDanger]}
-            onPress={onCancel}
-          >
-            <MaterialCommunityIcons name="bell-cancel-outline" size={18} color="#FFF" />
-            <Text style={styles.devToolBtnText}>Cancel all alarms</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         <View style={styles.footerBox}>
           <MaterialCommunityIcons name="leaf" size={20} color="#6B8E4E" />

@@ -194,7 +194,8 @@ async function main() {
     const { title, body } = buildReminderMessage(
       reminder.collectionAt,
       reminder.sitio,
-      reminder.minutesUntil
+      reminder.minutesUntil,
+      reminder.offset
     );
 
     const targets = devices.filter((device) =>

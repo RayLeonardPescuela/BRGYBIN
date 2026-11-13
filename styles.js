@@ -56,14 +56,14 @@ const shared = StyleSheet.create({
 
   /* ---------- Headers ---------- */
   // LOCKED page-title position: every back-chevron screen must land its
-  // title on the same line (60px = 40 wrapper + the old 20, consolidated
+  // title on the same line (40px, matching Login/SignUp, consolidated
   // here so screens can't drift apart again). Do not add per-screen
   // paddingTop on top of this — adjust here instead.
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 5,
   },
 
   headerWithTitle: {
@@ -98,7 +98,7 @@ const shared = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 15,
+    paddingTop: 1,
     paddingBottom: 10,
   },
 

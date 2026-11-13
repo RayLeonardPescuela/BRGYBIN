@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   center: shared.center,
   emptyText: shared.emptyText,
   emptySubtext: shared.emptySubtext,
-  scrollContent: { paddingHorizontal: 15, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 15, paddingTop: 10, paddingBottom: 100 },
 
   // Calendar
   calendarCard: {

@@ -22,8 +22,12 @@
 export const NOTIF_CHANNEL_ID = "collection-reminders";
 export const NOTIF_CHANNEL_NAME = "Collection Reminders";
 
-/** Minutes before a collection that each reminder fires. */
-export const REMINDER_OFFSETS_MIN = [10, 5];
+/**
+ * Minutes before a collection that each reminder fires.
+ * Offset 0 is the "at the scheduled start" tier: it fires AT the
+ * collection time ("happening now"), not before it.
+ */
+export const REMINDER_OFFSETS_MIN = [10, 5, 2, 0];
 
 /** How far ahead the phone arms alarms on every sync. */
 export const LOOKAHEAD_DAYS = 14;
@@ -32,10 +36,17 @@ export const LOOKAHEAD_DAYS = 14;
  * How late a server-sent reminder may still be worth delivering.
  *
  * GitHub Actions cannot schedule more often than once every 5 minutes,
- * so a "10 minutes before" reminder is routinely 4 minutes late. Inside
- * this window we still send (a late heads-up beats none); outside it we
- * drop it, because warning someone that trash collection already began
- * is worse than saying nothing.
+ * so a "10 minutes before" reminder is routinely 4 minutes late — and
+ * the tight tiers (T-2, T-0) are routinely late by up to that same
+ * 5 minutes, or dropped when the tick lands just outside their window.
+ * The device path (local alarms) fires exactly; this window is the
+ * price of the server path's $0 infrastructure. Inside the window we
+ * still send (a late heads-up beats none); outside it we drop it,
+ * because warning someone that trash collection already began is worse
+ * than saying nothing.
+ *
+ * The one deliberate exception is the offset-0 tier: it IS the
+ * "collection has started" notice, so it lives in [at, at + this].
  */
 export const CATCHUP_MINUTES = 5;
 
@@ -245,19 +256,26 @@ export const reminderDedupeId = (scheduleId, sitio, offset) =>
  * MESSAGING
  *
  * Both delivery paths build the SAME text. The countdown is computed
- * from the real remaining time rather than the nominal 10/5 tier, so a
+ * from the real remaining time rather than the nominal tier, so a
  * reminder that GitHub Actions delivers 4 minutes late says "in about 6
  * minutes" — which is true — instead of a stale "in 10 minutes".
+ *
+ * The offset-0 tier never counts down: it fires AT the collection, so
+ * its title states that instead of claiming "in about 1 minute".
  * ============================================================ */
 
 export const reminderMinutesUntil = (targetMs, nowMs) =>
   Math.max(1, Math.round((targetMs - nowMs) / 60000));
 
-export function buildReminderMessage(collectionAtMs, sitio, minutesUntil) {
+export function buildReminderMessage(collectionAtMs, sitio, minutesUntil, offset) {
+  const title =
+    offset === 0
+      ? "Trash collection is happening now"
+      : `Trash collection in about ${minutesUntil} minute${
+          minutesUntil === 1 ? "" : "s"
+        }`;
   return {
-    title: `Trash collection in about ${minutesUntil} minute${
-      minutesUntil === 1 ? "" : "s"
-    }`,
+    title,
     body: `${sitio || "Your sitio"} · at ${formatTime(new Date(collectionAtMs))}`,
   };
 }
@@ -269,6 +287,11 @@ export function buildReminderMessage(collectionAtMs, sitio, minutesUntil) {
  * minute — it must reconstruct what is due each run. Each reminder is
  * due once its fireAt has passed, and stays deliverable for
  * CATCHUP_MINUTES before being dropped as no longer useful.
+ *
+ * Countdown tiers (offset > 0) additionally stop the moment the
+ * collection has begun: a "in about N minutes" notice after the truck
+ * arrived is wrong. The offset-0 tier inverts that — it only becomes
+ * due AT the collection and lives in [at, at + CATCHUP_MINUTES].
  * ============================================================ */
 export function collectDueReminders(schedules, now, options = {}) {
   const {
@@ -284,14 +307,19 @@ export function collectDueReminders(schedules, now, options = {}) {
     if (!when) continue;
 
     const at = when.getTime();
-    if (at <= nowMs) continue; // collection already under way
-
     const sitio = String(schedule.sitio || "").trim();
 
     for (const offset of offsets) {
       const fireAt = at - offset * 60000;
-      if (nowMs < fireAt) continue; // not due yet
-      if (nowMs > fireAt + catchUpMinutes * 60000) continue; // too stale
+
+      if (offset === 0) {
+        if (nowMs < fireAt) continue; // collection hasn't started yet
+        if (nowMs > fireAt + catchUpMinutes * 60000) continue; // too late to matter
+      } else {
+        if (at <= nowMs) continue; // collection already under way
+        if (nowMs < fireAt) continue; // not due yet
+        if (nowMs > fireAt + catchUpMinutes * 60000) continue; // too stale
+      }
 
       out.push({
         scheduleId: schedule.id,

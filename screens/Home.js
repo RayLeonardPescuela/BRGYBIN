@@ -19,7 +19,7 @@ import { countDocs } from "../config/counts";
 import shared, { COLORS } from "../styles";
 import { canViewAdminPanel, roleLabel } from "../config/roles";
 // Shared with the reminder scheduler so the dashboard's "next pickup"
-// and the T-10/T-5 alarms can never disagree about a collection's date.
+// and the T-10/T-5/T-2/T-0 alarms can never disagree about a collection's date.
 import { parseScheduleDate, formatPickupLabel, startOfToday } from "../config/reminders";
 
 const defaultAnnouncements = [

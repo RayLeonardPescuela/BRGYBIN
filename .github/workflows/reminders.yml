@@ -2,10 +2,12 @@
 # Collection reminder push — the "server" delivery path
 #
 # Runs every 5 minutes (GitHub's minimum cron granularity). Each run
-# works out which T-10 / T-5 reminders are due and sends them through
-# the Expo Push Service, which delivers over FCM on Android. This is
-# what reaches a resident who installed the app but never reopened it —
-# the one gap the phone's own alarms cannot cover.
+# works out which T-10 / T-5 / T-2 / T-0 reminders are due and sends
+# them through the Expo Push Service, which delivers over FCM on
+# Android. This is what reaches a resident who installed the app but
+# never reopened it — the one gap the phone's own alarms cannot cover.
+# Note the tight tiers (T-2, T-0) can land up to ~5 min late here; the
+# phone's local alarms fire exactly.
 #
 # IDEMPOTENCY: the script claims each reminder by creating a Firestore
 # doc with a deterministic id, so a repeated or overlapping run never

@@ -78,10 +78,37 @@ due = collectDueReminders([sched], at(7, 55));
 t("T-5 offset", byOffset(due, 5)[0]?.offset, 5);
 
 due = collectDueReminders([sched], at(7, 57));
-t("both tiers overdue window", due.filter(d => d.offset === 5).length, 1);
+t("countdown tiers overdue window", due.filter(d => d.offset === 5).length, 1);
 
-// ---- collection already under way: never send ----
-t("nothing at 8:01", collectDueReminders([sched], at(8, 1)).length, 0);
+// ---- the 2-minute tier ----
+due = collectDueReminders([sched], at(7, 57));
+t("T-2 not due at 7:57", byOffset(due, 2).length, 0);
+
+due = collectDueReminders([sched], at(7, 58));
+t("T-2 due at 7:58", byOffset(due, 2).length, 1);
+t("T-2 offset", byOffset(due, 2)[0]?.offset, 2);
+t("T-2 minutesUntil", byOffset(due, 2)[0]?.minutesUntil, 2);
+
+// ---- the at-the-time tier ----
+due = collectDueReminders([sched], at(7, 59));
+t("T-0 not due at 7:59", byOffset(due, 0).length, 0);
+
+due = collectDueReminders([sched], at(8, 0));
+t("T-0 due exactly at 8:00", byOffset(due, 0).length, 1);
+t("T-0 offset", byOffset(due, 0)[0]?.offset, 0);
+
+due = collectDueReminders([sched], at(8, 4));
+t("T-0 still due at 8:04 (inside catchup)", byOffset(due, 0).length, 1);
+
+due = collectDueReminders([sched], at(8, 6));
+t("T-0 dropped past catchup", byOffset(due, 0).length, 0);
+
+// ---- collection already under way: countdown tiers never send ----
+// The offset-0 tier is the exception — it IS the "started" notice and
+// lives in [at, at + CATCHUP_MINUTES], so 8:01 yields exactly it.
+due = collectDueReminders([sched], at(8, 1));
+t("only T-0 at 8:01", due.length, 1);
+t("countdown tiers silent once started", due.filter((d) => d.offset > 0).length, 0);
 t("nothing at 9:00", collectDueReminders([sched], at(9, 0)).length, 0);
 
 // ---- unusable schedules are skipped, never guessed ----
@@ -98,7 +125,10 @@ t("dedupe strips punctuation", reminderDedupeId("s1", "CAMANGGAHAN 1,2,3", 5), "
 // ---- messaging is honest about the real countdown ----
 t("title 10", buildReminderMessage(at(8, 0), "Buanoy Centro", 10).title, "Trash collection in about 10 minutes");
 t("title 1", buildReminderMessage(at(8, 0), "Buanoy Centro", 1).title, "Trash collection in about 1 minute");
+t("title 2", buildReminderMessage(at(8, 0), "Buanoy Centro", 2, 2).title, "Trash collection in about 2 minutes");
+t("title 0 is now, not a countdown", buildReminderMessage(at(8, 0), "Buanoy Centro", 1, 0).title, "Trash collection is happening now");
 t("body", buildReminderMessage(at(8, 0), "Buanoy Centro", 10).body, "Buanoy Centro \u00b7 at 8:00 AM");
+t("body 0", buildReminderMessage(at(8, 0), "Buanoy Centro", 1, 0).body, "Buanoy Centro \u00b7 at 8:00 AM");
 t("minutesUntil floor of 1", reminderMinutesUntil(at(8, 0), at(8, 5)), 1);
 
 // ---- sitio normalisation ----

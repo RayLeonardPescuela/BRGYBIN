@@ -176,6 +176,13 @@ service cloud.firestore {
     }
 
     // ---------- redemptions (points spent) ----------
+    // Read stays open to any signed-in user ON PURPOSE: the resident
+    // Home dashboard reads EVERYONE's redemptions for its barangay-wide
+    // "Recent Activity" feed and community "Total scans" stat, and rules
+    // cannot tell that query apart from a resident reading all receipts.
+    // Tightening this to owner-or-admin would break the dashboard.
+    // Receipts expose only name, item and points — the same data Home
+    // already renders to every resident.
     match /redemptions/{id} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();

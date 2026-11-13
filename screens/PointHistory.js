@@ -102,7 +102,13 @@ export default function PointHistory({ navigation }) {
       : item.itemName || "Redeemed Item";
 
     return (
-      <View style={styles.historyCard}>
+      <TouchableOpacity
+        style={styles.historyCard}
+        // Only redemptions have receipts — earned rows lead nowhere.
+        disabled={isEarned}
+        activeOpacity={isEarned ? 1 : 0.7}
+        onPress={() => navigation.navigate("Receipt", { id: item.id })}
+      >
         <View style={[styles.iconContainer, { backgroundColor: isEarned ? "#4CAF50" : "#E57373" }]}>
           <MaterialCommunityIcons
             name={isEarned ? "plus-circle-outline" : "minus-circle-outline"}
@@ -121,7 +127,15 @@ export default function PointHistory({ navigation }) {
         <Text style={[styles.historyPoints, { color: isEarned ? "#4CAF50" : "#E57373" }]}>
           {isEarned ? "+" : "-"}{points}
         </Text>
-      </View>
+        {!isEarned && (
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={22}
+            color="#999"
+            style={{ marginLeft: 4 }}
+          />
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -133,6 +147,14 @@ export default function PointHistory({ navigation }) {
           <MaterialCommunityIcons name="chevron-double-left" size={35} color="#4A90E2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Point History</Text>
+        {/* Shortcut to this resident's receipt list */}
+        <TouchableOpacity
+          style={styles.headerAction}
+          onPress={() => navigation.navigate("MyReceipts")}
+          accessibilityLabel="My receipts"
+        >
+          <MaterialCommunityIcons name="receipt-text" size={26} color="#4A90E2" />
+        </TouchableOpacity>
       </View>
 
       {/* Summary */}
@@ -176,6 +198,7 @@ const styles = StyleSheet.create({
   container: shared.container,
   header: shared.header,
   headerTitle: [shared.headerTitle, { marginLeft: 10 }],
+  headerAction: { marginLeft: "auto", padding: 4 },
   summaryRow: shared.summaryRow,
   summaryCard: shared.summaryCard,
   summaryValue: shared.summaryValue,

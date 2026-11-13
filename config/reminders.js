@@ -10,7 +10,7 @@
 // DELIVERY MODES — exactly ONE owns delivery per device, so a resident
 // never receives the same reminder twice:
 //
-//   "device" -> this phone arms its own T-10 / T-5 alarms
+//   "device" -> this phone arms its own T-10 / T-5 / T-2 / T-0 alarms
 //               (fires with the app killed and offline; needs one
 //                app-open to arm them)
 //   "server" -> GitHub Actions cron sends via the Expo Push Service
@@ -298,7 +298,7 @@ export async function cancelRemindersForSchedule(scheduleId, sitio) {
  *  3. permission    -> bail gracefully if not granted
  *  4. scope         -> staff arm ALL sitios; residents only their own;
  *                      residents with no sitio arm nothing
- *  5. arm T-10/T-5  -> for each upcoming collection
+ *  5. arm T-10/T-5/T-2/T-0 -> for each upcoming collection
  * ============================================================ */
 
 // Two syncs can overlap (login + foreground, or a schedule save racing a
@@ -395,7 +395,8 @@ async function syncCollectionRemindersNow(user, userData) {
         const message = buildReminderMessage(
           at,
           sitio,
-          reminderMinutesUntil(at, fireAt.getTime())
+          reminderMinutesUntil(at, fireAt.getTime()),
+          offset
         );
 
         await Notifications.scheduleNotificationAsync({

@@ -35,6 +35,8 @@ import CreateNotification from "./screens/CreateNotification";
 import ManageAnnouncements from "./screens/ManageAnnouncements";
 import DeveloperKiosk from "./screens/DeveloperKiosk";
 import PointHistory from "./screens/PointHistory";
+import MyReceipts from "./screens/MyReceipts";
+import Receipt from "./screens/Receipt";
 
 const Stack = createNativeStackNavigator();
 
@@ -188,6 +190,8 @@ export default function App() {
           <Stack.Screen name="ManageAnnouncements" component={ManageAnnouncements} />
           <Stack.Screen name="DeveloperKiosk" component={DeveloperKiosk} />
           <Stack.Screen name="PointHistory" component={PointHistory} />
+          <Stack.Screen name="MyReceipts" component={MyReceipts} />
+          <Stack.Screen name="Receipt" component={Receipt} />
         </Stack.Navigator>
       </NavigationContainer>
       {/* Rendered after </NavigationContainer> ON PURPOSE. BackHandler
