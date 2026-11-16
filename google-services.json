@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "382158825703",
-    "project_id": "brngybinbackend",
-    "storage_bucket": "brngybinbackend.firebasestorage.app"
+    "project_number": "188250769398",
+    "project_id": "brngybindb",
+    "storage_bucket": "brngybindb.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:382158825703:android:026ea25de404cf117e9a42",
+        "mobilesdk_app_id": "1:188250769398:android:cd38302eb96791babbe9d7",
         "android_client_info": {
-          "package_name": "com.brngybin.app"
+          "package_name": "com.rayleonard09.BRNGYBIN"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "188250769398-u07g3t30ucemff1l5mg8ba24ql7anepj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyD7yfigl2LK_AwV9eg5VRq_ir6bJk29H_w"
+          "current_key": "AIzaSyCFTyTeSWO069Nlc8Elf1OaWKHCIIqKVYM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "188250769398-u07g3t30ucemff1l5mg8ba24ql7anepj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
